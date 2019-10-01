@@ -38,7 +38,7 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                     lunchtimeHandler(MsgArgs, event);
                     break;
                 default:
-                    rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again."), event.channel)
+                    rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">"), event.channel);
             }
         }
 	}
@@ -55,12 +55,22 @@ function CheckTime(){
     MinInDay = (now.getHours()*60) + now.getMinutes();
     delete(now); //dont create a new date variable every 10 seconds
     if((MinInDay == (LunchTime.MinInDay-15)) && LunchTimeDeclared){ //15 minutes before set lunchtime
-        if (!AlertSent) rtm.sendMessage(":rotating_light: :rotating_light: :rotating_light: LUNCH IN 15 MINUTES :rotating_light: :rotating_light: :rotating_light:","CMZ536P4M");
+        if (!AlertSent) rtm.sendMessage(subs().concat(" :rotating_light: :rotating_light: :rotating_light: LUNCH IN 15 MINUTES :rotating_light: :rotating_light: :rotating_light:"),"CMZ536P4M");
         AlertSent = true; //don't keep sending alerts
     }
     else{
         AlertSent = false;
     }
+}
+
+var subscribers = [];
+
+function subs(){
+    var StrToRet = "";
+    for (i = 0; i < subscribers.length; i++){
+        StrToRet = StrToRet.concat("<@",subscribers[i], "> ");
+    }
+    return StrToRet;
 }
 
 
@@ -102,8 +112,33 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
                 rtm.sendMessage("Please provide 24h time with leading zeroes in the format hh:mm.",event.channel);
             }
             break;
+        case "subscribe":
+            AddSubscriber(event.user, event.channel);
+            break;
+        case "unsubscribe":
+            RemoveSubscriber(event.user, event.channel);
+            break;
+    }
+}
 
+function AddSubscriber(username, channel){
+    if(subscribers.toString().indexOf(username) == -1){
+        subscribers.push(username);
+        rtm.sendMessage("Thanks, <@".concat(username, ">. You are now subscribed to lunch warnings."),channel);
+        }
+    else{
+        rtm.sendMessage("You are already subscribed, <@".concat(username, ">. To unsubscribe, type @chipsbot lunchtime unsubscribe."),channel);
+    }
 
+}
+
+function RemoveSubscriber(username,channel){
+    if(subscribers.indexOf(username) != -1){
+        subscribers.splice(subscribers.indexOf(username),1);
+        rtm.sendMessage("Thanks, <@".concat(username, ">. You are now unsubscribed from lunch warnings."),channel);
+    }
+    else{
+        rtm.sendMessage("You are not subscribed, <@".concat(username, ">. To subscribe, type @chipsbot lunchtime subscribe."),channel);
     }
 }
 
