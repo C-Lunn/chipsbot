@@ -49,11 +49,11 @@ rtm.on('reaction_added', (event) => {
 }); // for monitoring reactions
 
 var AlertSent = false;
+var Reminded = false;
 var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
 function CheckTime(){
     var now = new Date();
     MinInDay = (now.getHours()*60) + now.getMinutes();
-    delete(now); //dont create a new date variable every 10 seconds
     if((MinInDay == (LunchTime.MinInDay-15)) && LunchTimeDeclared){ //15 minutes before set lunchtime
         if (!AlertSent) rtm.sendMessage(subs().concat(" :rotating_light: :rotating_light: :rotating_light: LUNCH IN 15 MINUTES :rotating_light: :rotating_light: :rotating_light:"),"CMZ536P4M");
         AlertSent = true; //don't keep sending alerts
@@ -61,6 +61,18 @@ function CheckTime(){
     else{
         AlertSent = false;
     }
+    if(now.GetHours == 10 && now.GetMinutes == 30 && !LunchTimeDeclared && (now.getDay != 5 || now.getDay != 6)){
+        if (!Reminded) rtm.sendMessage("Nobody has set a lunchtime yet. Think of the chips!","CMZ536P4M");
+        Reminded = true;
+    }
+    else{
+        Reminded = false;
+    }
+    if(now.GetHours == 0 && LunchTimeDeclared){
+        LunchTimeDeclared = false;
+    }
+
+    delete(now); //dont create a new date variable every 10 seconds
 }
 
 var subscribers = [];
@@ -117,6 +129,9 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             break;
         case "unsubscribe":
             RemoveSubscriber(event.user, event.channel);
+            break;
+        case "check":
+            rtm.sendMessage((LunchTimeDeclared ? "Lunchtime today is set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ".") : "Lunchtime has not been set for today."), event.channel);
             break;
     }
 }
