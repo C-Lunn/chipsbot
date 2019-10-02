@@ -148,7 +148,15 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             RemoveSubscriber(event.user, event.channel);
             break;
         case "check":
-            rtm.sendMessage((LunchTimeDeclared ? "Lunchtime today is set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ".") : "Lunchtime has not been set for today."), event.channel);
+            if(LunchTimeDeclared){
+                var now = new Date()
+                var nowMins = 60*now.getHours()+now.getMinutes();
+                var timeLeft = LunchTime.MinInDay-nowMins;}
+            if(timeLeft > 0 || !LunchTimeDeclared){
+                rtm.sendMessage((LunchTimeDeclared ? "Lunchtime today is set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ", ", timeLeft, " minutes from now.") : "Lunchtime has not been set for today."), event.channel);}
+            else{
+                rtm.sendMessage("Lunchtime today was set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ", ", Math.abs(timeLeft), " minutes ago."), event.channel);
+            }
             break;
     }
 }
