@@ -3,7 +3,7 @@ const token = process.env.CHIPSTOKEN; //CHIPSTOKEN is an environment variable se
 const HttpsProxyAgent = require('https-proxy-agent');
 
 const proxyUrl = process.env.http_proxy //likewise for the proxy
-
+var fs = require("fs");
 const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
 
 (async () => { //lmao I have no idea what this bit does I just copied it from the API
@@ -16,10 +16,28 @@ var LunchTime = {
     'h': -1,
     'm': -1,
     'MinInDay': -1
-}; //default values for lunchtime, don't know how to declare an uninitialised struct
+}; //default values for lunchtime, don't know how to declare an uninitialised structi
+var subscribers = [];
+
+ReadSubsIn();
+
+function ReadSubsIn(){ //reads the subscribers in from file on startup
+    fs.readFile("sub.txt", function(err,buf) {
+        ArrayPos = 0;
+        ComPos = 0;
+        retArray = []
+        SubsS = buf.toString();
+        while(SubsS.indexOf(",") != -1){
+            ComPos = SubsS.indexOf(",");
+            retArray[ArrayPos++]=SubsS.slice(0,ComPos);
+            SubsS = SubsS.slice(ComPos+1,SubsS.length);
+        }
+        retArray[ArrayPos]=SubsS;
+        subscribers = retArray; //for some reason returning the array caused it to shit a brick so idk
+    })
+}
 
 rtm.on('message', (event) => { //this is a callback that occurs on every message sent to every channel the bot is in
-//    console.log(event);
     if(event.hidden == true){
         return;
     } //don't do stuff on 'hidden' messages such as edits
@@ -68,16 +86,15 @@ function CheckTime(){
     else{
         Reminded = false;
     }
-    if(now.GetHours == 0 && LunchTimeDeclared){
+    if(now.getHours() == 0 && LunchTimeDeclared){
         LunchTimeDeclared = false;
     }
 
     delete(now); //dont create a new date variable every 10 seconds
 }
 
-var subscribers = [];
 
-function subs(){
+function subs(){ //gets all the subscribers and puts them into a string suitable for message
     var StrToRet = "";
     for (i = 0; i < subscribers.length; i++){
         StrToRet = StrToRet.concat("<@",subscribers[i], "> ");
@@ -140,6 +157,7 @@ function AddSubscriber(username, channel){
     if(subscribers.toString().indexOf(username) == -1){
         subscribers.push(username);
         rtm.sendMessage("Thanks, <@".concat(username, ">. You are now subscribed to lunch warnings."),channel);
+        SaveSubsFile();
         }
     else{
         rtm.sendMessage("You are already subscribed, <@".concat(username, ">. To unsubscribe, type @chipsbot lunchtime unsubscribe."),channel);
@@ -151,6 +169,7 @@ function RemoveSubscriber(username,channel){
     if(subscribers.indexOf(username) != -1){
         subscribers.splice(subscribers.indexOf(username),1);
         rtm.sendMessage("Thanks, <@".concat(username, ">. You are now unsubscribed from lunch warnings."),channel);
+        SaveSubsFile();
     }
     else{
         rtm.sendMessage("You are not subscribed, <@".concat(username, ">. To subscribe, type @chipsbot lunchtime subscribe."),channel);
@@ -174,3 +193,11 @@ function setLunchtime(TimeIn, sc, channel){
     LunchTimeDeclared = true;
     sc == "s" ? rtm.sendMessage("Lunchtime set to ".concat(TimeIn.slice(0,2),":",TimeIn.slice(3),"."),channel) : rtm.sendMessage("Lunchtime changed to ".concat(TimeIn.slice(0,2),":",TimeIn.slice(3),"."),channel); //I love ternary operators
 }
+
+function SaveSubsFile(){
+    fs.writeFile("sub.txt", subscribers, (err) => {
+        if (err) console.log(err);
+        console.log("written");
+    });
+}
+
