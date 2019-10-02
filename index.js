@@ -37,6 +37,17 @@ function ReadSubsIn(){ //reads the subscribers in from file on startup
     })
 }
 
+var TheMenu;
+GetMenuFromFile();
+
+function GetMenuFromFile(){
+    fs.readFile("menu.json", function(err,buf){
+        TheMenu = JSON.parse(buf);
+        console.log(TheMenu);
+    });
+}
+
+
 rtm.on('message', (event) => { //this is a callback that occurs on every message sent to every channel the bot is in
     if(event.hidden == true){
         return;
@@ -56,7 +67,7 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                     lunchtimeHandler(MsgArgs, event);
                     break;
                 default:
-                    rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">"), event.channel);
+                    rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">."), event.channel);
             }
         }
 	}
@@ -65,7 +76,7 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 rtm.on('reaction_added', (event) => {
     //console.log(event);
 }); // for monitoring reactions
-
+var MenuIsValid = false;
 var AlertSent = false;
 var Reminded = false;
 var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
@@ -76,10 +87,14 @@ function CheckTime(){
         if (!AlertSent) rtm.sendMessage(subs().concat(" :rotating_light: :rotating_light: :rotating_light: LUNCH IN 15 MINUTES :rotating_light: :rotating_light: :rotating_light:"),"CMZ536P4M");
         AlertSent = true; //don't keep sending alerts
     }
+    else if((MinInDay == LunchTime.MinInDay) && LunchTimeDeclared){
+        if (!AlertSent) rtm.sendMessage(subs().concat(" :rotating_light: :fries: :rotating_light: :fries: :rotating_light: LUNCH TIME :rotating_light: :fries: :rotating_light: :fries: :rotating_light:"),"CMZ536P4M");
+        AlertSent = true;
+    }
     else{
         AlertSent = false;
     }
-    if(now.GetHours == 10 && now.GetMinutes == 30 && !LunchTimeDeclared && (now.getDay != 5 || now.getDay != 6)){
+    if(now.getHours() == 10 && now.getMinutes() == 30 && !LunchTimeDeclared && (now.getDay != 6 || now.getDay != 0)){
         if (!Reminded) rtm.sendMessage("Nobody has set a lunchtime yet. Think of the chips!","CMZ536P4M");
         Reminded = true;
     }
@@ -89,7 +104,7 @@ function CheckTime(){
     if(now.getHours() == 0 && LunchTimeDeclared){
         LunchTimeDeclared = false;
     }
-
+    if(now.GetMonth()+1 > )
     delete(now); //dont create a new date variable every 10 seconds
 }
 
@@ -158,6 +173,49 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
                 rtm.sendMessage("Lunchtime today was set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ", ", Math.abs(timeLeft), " minutes ago."), event.channel);
             }
             break;
+        case "menu":
+            menuHandler(MsgArgs,event);
+            break;
+    }
+}
+
+function menuHandler(MsgArgs, event){
+    DayMap = ["monday","tuesday","wednesday","thursday","friday"];
+    if(MsgArgs[3] == "validset"){
+        const DatRegEx = /^(\d)?\d\s(\d)?\d$/;
+        if(DatRegEx.test(MsgArgs[4].concat(" ",MsgArgs[5]))){
+            ValidDay = MsgArgs[4];
+            ValidMonth = MsgArgs[5];
+            rtm.sendMessage("Menu valid until ".concat(ValidDay,"/",ValidMonth),event.channel);
+        }
+        else{
+            rtm.sendMessage("Please enter a valid date in the form dd mm.",event.channel);
+        }
+    }
+    if(MenuIsValid){
+        if(MsgArgs.length == 3 || MsgArgs[3] == "today"){
+            now = new Date();
+            today = (now.getDay()-1);
+            if (today < 0) today = 6;
+            rtm.sendMessage("MENU FOR ".concat(DayMap[today].toUpperCase(),":\n"),event.channel)
+            ArrtoSend = []
+            for(var key in TheMenu){
+                ArrtoSend.push(key.concat(": ",TheMenu[key][today]));
+            }
+            rtm.sendMessage(ArrtoSend.join("\n"),event.channel);
+
+        }
+        else if(DayMap.indexOf(MsgArgs[3]) != -1){
+            rtm.sendMessage("MENU FOR ".concat(MsgArgs[3].toUpperCase(),":\n"),event.channel)
+            ArrtoSend = []
+            for(var key in TheMenu){
+                ArrtoSend.push(key.concat(": ",TheMenu[key][DayMap.indexOf(MsgArgs[3])]));
+            }
+            rtm.sendMessage(ArrtoSend.join("\n"),event.channel);
+        }
+
+    } else {
+        rtm.sendMessage("Menu has not been set for this week.");
     }
 }
 
