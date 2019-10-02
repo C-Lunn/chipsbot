@@ -77,6 +77,8 @@ rtm.on('reaction_added', (event) => {
     //console.log(event);
 }); // for monitoring reactions
 var MenuIsValid = false;
+var ValidDay = -1;
+var ValidMonth = -1;
 var AlertSent = false;
 var Reminded = false;
 var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
@@ -104,7 +106,8 @@ function CheckTime(){
     if(now.getHours() == 0 && LunchTimeDeclared){
         LunchTimeDeclared = false;
     }
-    if(now.GetMonth()+1 > )
+    if(now.getMonth()+1 > ValidMonth) MenuIsValid = false;
+    if(now.getDate() > ValidDay) MenuIsValid = false;
     delete(now); //dont create a new date variable every 10 seconds
 }
 
@@ -187,6 +190,7 @@ function menuHandler(MsgArgs, event){
             ValidDay = MsgArgs[4];
             ValidMonth = MsgArgs[5];
             rtm.sendMessage("Menu valid until ".concat(ValidDay,"/",ValidMonth),event.channel);
+            MenuIsValid = true;
         }
         else{
             rtm.sendMessage("Please enter a valid date in the form dd mm.",event.channel);
@@ -215,7 +219,7 @@ function menuHandler(MsgArgs, event){
         }
 
     } else {
-        rtm.sendMessage("Menu has not been set for this week.");
+        rtm.sendMessage("Menu has not been set for this week.",event.channel);
     }
 }
 
