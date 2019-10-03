@@ -43,10 +43,22 @@ GetMenuFromFile();
 function GetMenuFromFile(){
     fs.readFile("menu.json", function(err,buf){
         TheMenu = JSON.parse(buf);
-        console.log(TheMenu);
     });
 }
 
+function GetValidityFromFile(){
+    fs.readFile("menuvalid", function(err,buf){
+        if (err) {MenuValidUntil = -1; return;}
+        MenuValidUntil = new Date(buf.toString());
+    });
+}
+
+function WriteValidityToFile(){
+    fs.writeFile("menuvalid", MenuValidUntil, (err) => {
+        if (err) console.log(err);
+    });
+
+}
 
 rtm.on('message', (event) => { //this is a callback that occurs on every message sent to every channel the bot is in
     if(event.hidden == true){
@@ -73,13 +85,10 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 	}
 });
 
-rtm.on('reaction_added', (event) => {
-    //console.log(event);
-}); // for monitoring reactions
 var MenuIsValid = false;
-var ValidDay = -1;
-var ValidMonth = -1;
 var AlertSent = false;
+var MenuValidUntil = -1;
+GetValidityFromFile();
 var Reminded = false;
 var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
 function CheckTime(){
@@ -106,9 +115,25 @@ function CheckTime(){
     if(now.getHours() == 0 && LunchTimeDeclared){
         LunchTimeDeclared = false;
     }
-    if(now.getMonth()+1 > ValidMonth) MenuIsValid = false;
-    if(now.getDate() > ValidDay) MenuIsValid = false;
+    CheckMenuValidity(now);
     delete(now); //dont create a new date variable every 10 seconds
+}
+
+function CheckMenuValidity(time){
+    if(MenuValidUntil == -1) { MenuIsValid = false; return; }
+    MenuIsValid = (MenuValidUntil > time);
+}
+
+function SetMenuValidity(ValDay, ValM){
+    time = new Date();
+    if(time.getMonth() > ValM-1){
+        ValidYear = time.getFullYear() + 1;
+    } else { ValidYear = time.getFullYear(); }
+    if(ValM < 10){ ValMS = "0".concat(ValM); } else {ValMS = ValM.toString();}
+    if(ValDay < 10){ValDayS = "0".concat(ValDay);} else {ValDayS = ValDay.toString();}
+    var ValidUntilStr = ValidYear.toString().concat("-",ValMS,"-",ValDayS,"T22:59:59Z");
+    MenuValidUntil = new Date(ValidUntilStr);
+    WriteValidityToFile();
 }
 
 
@@ -187,15 +212,18 @@ function menuHandler(MsgArgs, event){
     if(MsgArgs[3] == "validset"){
         const DatRegEx = /^(\d)?\d\s(\d)?\d$/;
         if(DatRegEx.test(MsgArgs[4].concat(" ",MsgArgs[5]))){
-            ValidDay = MsgArgs[4];
-            ValidMonth = MsgArgs[5];
-            rtm.sendMessage("Menu valid until ".concat(ValidDay,"/",ValidMonth),event.channel);
-            MenuIsValid = true;
+            SetMenuValidity(MsgArgs[4],MsgArgs[5]);
+            rtm.sendMessage("Menu valid until ".concat(MenuValidUntil.getDate(),"/",MenuValidUntil.getMonth()+1,"."),event.channel);
+            now = new Date();
+            CheckMenuValidity(now);
+            return;
         }
         else{
             rtm.sendMessage("Please enter a valid date in the form dd mm.",event.channel);
+            return;
         }
     }
+    if(MsgArgs[3] == "validcheck") { rtm.sendMessage((MenuIsValid ? "Menu is valid until ".concat(MenuValidUntil,".") : "Menu is not valid."),event.channel); return; }
     if(MenuIsValid){
         if(MsgArgs.length == 3 || MsgArgs[3] == "today"){
             now = new Date();
@@ -267,7 +295,5 @@ function setLunchtime(TimeIn, sc, channel){
 function SaveSubsFile(){
     fs.writeFile("sub.txt", subscribers, (err) => {
         if (err) console.log(err);
-        console.log("written");
     });
 }
-
