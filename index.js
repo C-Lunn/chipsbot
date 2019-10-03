@@ -78,6 +78,9 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                 case "lunchtime":
                     lunchtimeHandler(MsgArgs, event);
                     break;
+                case "bet":
+                    betHandler(MsgArgs,event);
+                    break;
                 default:
                     rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">."), event.channel);
             }
@@ -114,6 +117,10 @@ function CheckTime(){
     }
     if(now.getHours() == 0 && LunchTimeDeclared){
         LunchTimeDeclared = false;
+    }
+    if(now.getHours() == 0 && bets.length != 0){
+        betp.length = 0;
+        bets.length = 0;
     }
     CheckMenuValidity(now);
     delete(now); //dont create a new date variable every 10 seconds
@@ -204,7 +211,48 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
         case "menu":
             menuHandler(MsgArgs,event);
             break;
+
     }
+}
+
+betp = new Array();
+bets = new Array();
+
+
+function betHandler(MsgArgs,event){
+    switch(MsgArgs[2]){
+        case "place":
+            PlaceBet(MsgArgs,event);
+            break;
+        case "view":
+            ViewBet(event);
+            break;
+    }
+}
+
+
+function PlaceBet(MsgArgs,event){
+    inNo = parseInt(MsgArgs[3]);
+    if(isNaN(inNo) || parseInt(MsgArgs[3]) < 0 || parseInt(MsgArgs[3]) > 100){ rtm.sendMessage("Please enter a number 0-100.",event.channel); return;}
+    if(betp.indexOf(event.user) == -1){
+        betp.push(event.user);
+        bets.push(inNo);
+        rtm.sendMessage("You have placed a bet of ".concat(MsgArgs[3],", <@",event.user,">."),event.channel);
+    } else {
+        CurPos = betp.indexOf(event.user);
+        bets[CurPos] = inNo;
+        rtm.sendMessage("Your bet has been updated to ".concat(MsgArgs[3],", <@",event.user,">."),event.channel);
+    }
+
+}
+
+function ViewBet(event){
+    var Avgbet = 0;
+    for(i=0;i<bets.length;i++){
+        Avgbet += bets[i];
+    }
+    Avgbet /= bets.length;
+    rtm.sendMessage("Chips likelihood: ".concat(Avgbet, "%."),event.channel);
 }
 
 function menuHandler(MsgArgs, event){
