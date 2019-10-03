@@ -128,10 +128,10 @@ function SetMenuValidity(ValDay, ValM){
     time = new Date();
     if(time.getMonth() > ValM-1){
         ValidYear = time.getFullYear() + 1;
-    } else { ValidYear = time.getFullYear(); }
-    if(ValM < 10){ ValMS = "0".concat(ValM); } else {ValMS = ValM.toString();}
+    } else { ValidYear = time.getFullYear(); } //if the month is in the past, assume next year
+    if(ValM < 10){ ValMS = "0".concat(ValM); } else {ValMS = ValM.toString();} //cast all these bits to string
     if(ValDay < 10){ValDayS = "0".concat(ValDay);} else {ValDayS = ValDay.toString();}
-    var ValidUntilStr = ValidYear.toString().concat("-",ValMS,"-",ValDayS,"T22:59:59Z");
+    var ValidUntilStr = ValidYear.toString().concat("-",ValMS,"-",ValDayS,"T22:59:59Z"); //construct ISO date
     MenuValidUntil = new Date(ValidUntilStr);
     WriteValidityToFile();
 }
@@ -210,12 +210,12 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
 function menuHandler(MsgArgs, event){
     DayMap = ["monday","tuesday","wednesday","thursday","friday"];
     if(MsgArgs[3] == "validset"){
-        const DatRegEx = /^(\d)?\d\s(\d)?\d$/;
+        const DatRegEx = /^(\d)?\d\s(\d)?\d$/; //regexp for date
         if(DatRegEx.test(MsgArgs[4].concat(" ",MsgArgs[5]))){
             SetMenuValidity(MsgArgs[4],MsgArgs[5]);
             rtm.sendMessage("Menu valid until ".concat(MenuValidUntil.getDate(),"/",MenuValidUntil.getMonth()+1,"."),event.channel);
             now = new Date();
-            CheckMenuValidity(now);
+            CheckMenuValidity(now); //recheck the menu's validity on setting
             return;
         }
         else{
@@ -231,10 +231,10 @@ function menuHandler(MsgArgs, event){
             if (today < 0) today = 6;
             rtm.sendMessage("MENU FOR ".concat(DayMap[today].toUpperCase(),":\n"),event.channel)
             ArrtoSend = []
-            for(var key in TheMenu){
-                ArrtoSend.push(key.concat(": ",TheMenu[key][today]));
+            for(var key in TheMenu){ //iterate through keys in menu JSON
+                ArrtoSend.push(key.concat(": ",TheMenu[key][today])); //key is a string (or stringable) but can also be used to reference
             }
-            rtm.sendMessage(ArrtoSend.join("\n"),event.channel);
+            rtm.sendMessage(ArrtoSend.join("\n"),event.channel); //join all elements with a newline
 
         }
         else if(DayMap.indexOf(MsgArgs[3]) != -1){
