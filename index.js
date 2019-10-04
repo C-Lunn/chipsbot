@@ -1,25 +1,46 @@
+/*****************************************************************
+ * CHIPSBOT:
+ * A SLACKBOT THAT DEALS PRIMARILY WITH CHIPS
+ * **************************************************************/
+
+//Set up RTM api, proxy, and file system reader
 const { RTMClient, CLIENT_EVENTS, RTM_EVENTS } = require('@slack/rtm-api');
 const token = process.env.CHIPSTOKEN; //CHIPSTOKEN is an environment variable set with the token in (so it's not published to github)
 const HttpsProxyAgent = require('https-proxy-agent');
-
 const proxyUrl = process.env.http_proxy //likewise for the proxy
 var fs = require("fs");
 const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
 
-(async () => { //lmao I have no idea what this bit does I just copied it from the API
-          // Connect to Slack
-    const { self, team  } = await rtm.start();
-})();
-
+//Global variables
 var LunchTimeDeclared = false;
 var LunchTime = {
     'h': -1,
     'm': -1,
     'MinInDay': -1
-}; //default values for lunchtime, don't know how to declare an uninitialised structi
+}; //default values for lunchtime, don't know how to declare an uninitialised struct
 var subscribers = [];
+var TheMenu;
+var MenuIsValid = false;
+var AlertSent = false;
+var MenuValidUntil = -1;
+var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
+betp = new Array();
+bets = new Array();
 
+//RegExp Defs
+const TimeRegExp = /\d\d:\d\d/; //format for time
+
+
+//Setup functions to run
+(async () => { //lmao I have no idea what this bit does I just copied it from the API
+          // Connect to Slack
+    const { self, team  } = await rtm.start();
+})();
 ReadSubsIn();
+GetMenuFromFile();
+GetValidityFromFile();
+
+//Subscriber function defs
 
 function ReadSubsIn(){ //reads the subscribers in from file on startup
     fs.readFile("sub.txt", function(err,buf) {
@@ -37,8 +58,45 @@ function ReadSubsIn(){ //reads the subscribers in from file on startup
     })
 }
 
-var TheMenu;
-GetMenuFromFile();
+function AddSubscriber(username, channel){
+    if(subscribers.toString().indexOf(username) == -1){
+        subscribers.push(username);
+        rtm.sendMessage("Thanks, <@".concat(username, ">. You are now subscribed to lunch warnings."),channel);
+        SaveSubsFile();
+        }
+    else{
+        rtm.sendMessage("You are already subscribed, <@".concat(username, ">. To unsubscribe, type @chipsbot lunchtime unsubscribe."),channel);
+    }
+}
+
+function RemoveSubscriber(username,channel){
+    if(subscribers.indexOf(username) != -1){
+        subscribers.splice(subscribers.indexOf(username),1);
+        rtm.sendMessage("Thanks, <@".concat(username, ">. You are now unsubscribed from lunch warnings."),channel);
+        SaveSubsFile();
+    }
+    else{
+        rtm.sendMessage("You are not subscribed, <@".concat(username, ">. To subscribe, type @chipsbot lunchtime subscribe."),channel);
+    }
+}
+
+function SaveSubsFile(){
+    fs.writeFile("sub.txt", subscribers, (err) => {
+        if (err) console.log(err);
+    });
+}
+
+function subs(){ //gets all the subscribers and puts them into a string suitable for message
+    var StrToRet = "";
+    for (i = 0; i < subscribers.length; i++){
+        StrToRet = StrToRet.concat("<@",subscribers[i], "> ");
+    }
+    return StrToRet;
+}
+
+
+
+//Menu function defs
 
 function GetMenuFromFile(){
     fs.readFile("menu.json", function(err,buf){
@@ -59,6 +117,70 @@ function WriteValidityToFile(){
     });
 
 }
+
+function CheckMenuValidity(time){
+    if(MenuValidUntil == -1) { MenuIsValid = false; return; }
+    MenuIsValid = (MenuValidUntil > time);
+}
+
+function SetMenuValidity(ValDay, ValM){
+    time = new Date();
+    if(time.getMonth() > ValM-1){
+        ValidYear = time.getFullYear() + 1;
+    } else { ValidYear = time.getFullYear(); } //if the month is in the past, assume next year
+    if(ValM < 10){ ValMS = "0".concat(ValM); } else {ValMS = ValM.toString();} //cast all these bits to string
+    if(ValDay < 10){ValDayS = "0".concat(ValDay);} else {ValDayS = ValDay.toString();}
+    var ValidUntilStr = ValidYear.toString().concat("-",ValMS,"-",ValDayS,"T22:59:59Z"); //construct ISO date
+    MenuValidUntil = new Date(ValidUntilStr);
+    WriteValidityToFile();
+}
+
+//Betting functions
+function PlaceBet(MsgArgs,event){
+    inNo = parseInt(MsgArgs[3]);
+    if(isNaN(inNo) || parseInt(MsgArgs[3]) < 0 || parseInt(MsgArgs[3]) > 100){ rtm.sendMessage("Please enter a number 0-100.",event.channel); return;}
+    if(betp.indexOf(event.user) == -1){
+        betp.push(event.user);
+        bets.push(inNo);
+        rtm.sendMessage("You have placed a bet of ".concat(MsgArgs[3],", <@",event.user,">."),event.channel);
+    } else {
+        CurPos = betp.indexOf(event.user);
+        bets[CurPos] = inNo;
+        rtm.sendMessage("Your bet has been updated to ".concat(MsgArgs[3],", <@",event.user,">."),event.channel);
+    }
+
+}
+
+function ViewBet(event){
+    var Avgbet = 0;
+    for(i=0;i<bets.length;i++){
+        Avgbet += bets[i];
+    }
+    Avgbet /= bets.length;
+    rtm.sendMessage("Chips likelihood: ".concat(Avgbet, "%."),event.channel);
+}
+
+//Lunchtime functions
+function setLunchtime(TimeIn, sc, channel){
+    if(LunchTimeDeclared && sc == "s"){
+        rtm.sendMessage("Lunchtime has already been set for today. Please use this command in the form \"lunchtime change <hh:mm>\".",channel);
+        return;
+    }
+    var lth = parseInt(TimeIn.slice(0,2));
+    var ltm = parseInt(TimeIn.slice(3)); //grab the time in xx:yy and convert to integers
+    if(lth > 23 || ltm > 59){
+        rtm.sendMessage("Please enter a valid time.",channel);
+        return;
+    }
+    LunchTime.h = lth;
+    LunchTime.m = ltm;
+    LunchTime.MinInDay = 60*lth+ltm;
+    LunchTimeDeclared = true;
+    sc == "s" ? rtm.sendMessage("Lunchtime set to ".concat(TimeIn.slice(0,2),":",TimeIn.slice(3),"."),channel) : rtm.sendMessage("Lunchtime changed to ".concat(TimeIn.slice(0,2),":",TimeIn.slice(3),"."),channel); //I love ternary operators
+}
+
+
+//Chat handling functions
 
 rtm.on('message', (event) => { //this is a callback that occurs on every message sent to every channel the bot is in
     if(event.hidden == true){
@@ -88,12 +210,7 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 	}
 });
 
-var MenuIsValid = false;
-var AlertSent = false;
-var MenuValidUntil = -1;
-GetValidityFromFile();
-var Reminded = false;
-var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
+
 function CheckTime(){
     var now = new Date();
     MinInDay = (now.getHours()*60) + now.getMinutes();
@@ -126,33 +243,6 @@ function CheckTime(){
     delete(now); //dont create a new date variable every 10 seconds
 }
 
-function CheckMenuValidity(time){
-    if(MenuValidUntil == -1) { MenuIsValid = false; return; }
-    MenuIsValid = (MenuValidUntil > time);
-}
-
-function SetMenuValidity(ValDay, ValM){
-    time = new Date();
-    if(time.getMonth() > ValM-1){
-        ValidYear = time.getFullYear() + 1;
-    } else { ValidYear = time.getFullYear(); } //if the month is in the past, assume next year
-    if(ValM < 10){ ValMS = "0".concat(ValM); } else {ValMS = ValM.toString();} //cast all these bits to string
-    if(ValDay < 10){ValDayS = "0".concat(ValDay);} else {ValDayS = ValDay.toString();}
-    var ValidUntilStr = ValidYear.toString().concat("-",ValMS,"-",ValDayS,"T22:59:59Z"); //construct ISO date
-    MenuValidUntil = new Date(ValidUntilStr);
-    WriteValidityToFile();
-}
-
-
-function subs(){ //gets all the subscribers and puts them into a string suitable for message
-    var StrToRet = "";
-    for (i = 0; i < subscribers.length; i++){
-        StrToRet = StrToRet.concat("<@",subscribers[i], "> ");
-    }
-    return StrToRet;
-}
-
-
 function parseMessage(inputString){ //return each word in a message as an entry in an array
     inputString = inputString.toLowerCase(); //make case insensitive
     var ArrayPos = 0;
@@ -176,8 +266,6 @@ function chipsHandler(MsgArgs, event){ //handle chips
             return;
     }
 }
-
-const TimeRegExp = /\d\d:\d\d/; //format for time
 
 function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
     switch(MsgArgs[2]){
@@ -215,10 +303,6 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
     }
 }
 
-betp = new Array();
-bets = new Array();
-
-
 function betHandler(MsgArgs,event){
     switch(MsgArgs[2]){
         case "place":
@@ -228,31 +312,6 @@ function betHandler(MsgArgs,event){
             ViewBet(event);
             break;
     }
-}
-
-
-function PlaceBet(MsgArgs,event){
-    inNo = parseInt(MsgArgs[3]);
-    if(isNaN(inNo) || parseInt(MsgArgs[3]) < 0 || parseInt(MsgArgs[3]) > 100){ rtm.sendMessage("Please enter a number 0-100.",event.channel); return;}
-    if(betp.indexOf(event.user) == -1){
-        betp.push(event.user);
-        bets.push(inNo);
-        rtm.sendMessage("You have placed a bet of ".concat(MsgArgs[3],", <@",event.user,">."),event.channel);
-    } else {
-        CurPos = betp.indexOf(event.user);
-        bets[CurPos] = inNo;
-        rtm.sendMessage("Your bet has been updated to ".concat(MsgArgs[3],", <@",event.user,">."),event.channel);
-    }
-
-}
-
-function ViewBet(event){
-    var Avgbet = 0;
-    for(i=0;i<bets.length;i++){
-        Avgbet += bets[i];
-    }
-    Avgbet /= bets.length;
-    rtm.sendMessage("Chips likelihood: ".concat(Avgbet, "%."),event.channel);
 }
 
 function menuHandler(MsgArgs, event){
@@ -299,49 +358,4 @@ function menuHandler(MsgArgs, event){
     }
 }
 
-function AddSubscriber(username, channel){
-    if(subscribers.toString().indexOf(username) == -1){
-        subscribers.push(username);
-        rtm.sendMessage("Thanks, <@".concat(username, ">. You are now subscribed to lunch warnings."),channel);
-        SaveSubsFile();
-        }
-    else{
-        rtm.sendMessage("You are already subscribed, <@".concat(username, ">. To unsubscribe, type @chipsbot lunchtime unsubscribe."),channel);
-    }
 
-}
-
-function RemoveSubscriber(username,channel){
-    if(subscribers.indexOf(username) != -1){
-        subscribers.splice(subscribers.indexOf(username),1);
-        rtm.sendMessage("Thanks, <@".concat(username, ">. You are now unsubscribed from lunch warnings."),channel);
-        SaveSubsFile();
-    }
-    else{
-        rtm.sendMessage("You are not subscribed, <@".concat(username, ">. To subscribe, type @chipsbot lunchtime subscribe."),channel);
-    }
-}
-
-function setLunchtime(TimeIn, sc, channel){
-    if(LunchTimeDeclared && sc == "s"){
-        rtm.sendMessage("Lunchtime has already been set for today. Please use this command in the form \"lunchtime change <hh:mm>\".",channel);
-        return;
-    }
-    var lth = parseInt(TimeIn.slice(0,2));
-    var ltm = parseInt(TimeIn.slice(3)); //grab the time in xx:yy and convert to integers
-    if(lth > 23 || ltm > 59){
-        rtm.sendMessage("Please enter a valid time.",channel);
-        return;
-    }
-    LunchTime.h = lth;
-    LunchTime.m = ltm;
-    LunchTime.MinInDay = 60*lth+ltm;
-    LunchTimeDeclared = true;
-    sc == "s" ? rtm.sendMessage("Lunchtime set to ".concat(TimeIn.slice(0,2),":",TimeIn.slice(3),"."),channel) : rtm.sendMessage("Lunchtime changed to ".concat(TimeIn.slice(0,2),":",TimeIn.slice(3),"."),channel); //I love ternary operators
-}
-
-function SaveSubsFile(){
-    fs.writeFile("sub.txt", subscribers, (err) => {
-        if (err) console.log(err);
-    });
-}
