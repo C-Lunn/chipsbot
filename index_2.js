@@ -28,9 +28,9 @@ class Lunchtime {
         this.alerted;
         this.dayStr = "";
         for(var i=0;i<day.length;i++){
-            this.dayStr = this.dayStr.concat(Daymap[this.day[i]], (i == day.length-1 ? "." : ", "));
+            this.dayStr = this.dayStr.concat(Daymap[this.day[i]], (i == day.length-1 ? "" : ", "));
         }
-        rtm.sendMessage("Lunchtime ".concat(this.name, " at ",this.hh,":",this.mm," on ", this.dayStr, " This lunchtime will ", (this.permament ? "" : "not "), "recur."), event.channel);
+        rtm.sendMessage("Lunchtime ".concat(this.name, " at ",this.hh,":",(this.mm < 10 ? "0".concat(this.mm) : this.mm)," on ", this.dayStr, ". This lunchtime will ", (this.permament ? "" : "not "), "recur."), event.channel);
     }
     addSubscriber(event){
         if(this.subscribers.indexOf(event.user) != -1){
@@ -62,16 +62,10 @@ class Lunchtime {
         }
     }
     check(now,eventc){
-        dayStr = "";
-        if(this.day.length > 1){
-            for(i=0;i<this.day.length;i++){
-                dayStr = dayStr.concat(Daymap[this.day[i]],", ")
-            }
-        } else { dayStr = Daymap[this.day[1]] }
-        rtm.sendMessage("This lunchtime \"".concat(this.name,"\", is set for ",hh,":",mm," on ", dayStr,". It will ", (this.permanent ? "" : "not"), "recur."),eventc.channel);
+        rtm.sendMessage("This lunchtime \"".concat(this.name,"\", is set for ",this.hh,":",(this.mm < 10 ? "0".concat(this.mm) : this.mm)," on ", this.dayStr,". It will ", (this.permanent ? "" : "not"), " recur."),eventc.channel);
         if(this.day.indexOf(now.getDay()) != -1){
-            MID = now.getHours()*60 + now.getMinutes();
-            MinToGo = this.mininDay - MID;
+            var MID = now.getHours()*60 + now.getMinutes();
+            var MinToGo = this.mininDay - MID;
             rtm.sendMessage(((MinToGo > 0) ? "This lunchtime is ".concat(MinToGo, " minutes from now.") : "This lunchtime was ".concat(Math.abs(MinToGo), " minutes ago.")),eventc.channel);
         }
 
@@ -216,12 +210,13 @@ function setLunchtime(MsgArgs, event){
         return;
     }
     now = new Date();
-    if(MsgArgs.length = 5){  // lunchtime set name hh:mm <end>
+    if(MsgArgs.length == 5){  // lunchtime set name hh:mm <end>
         dayArr = [now.getDay()];
         lunchtimes.push(new Lunchtime(lth,ltm,MsgArgs[3],dayArr,event));
         return;
     }
     dayArr = [];
+
     for(i=5;i<MsgArgs.length;i++){
         if(daymap.indexOf(MsgArgs[i]) != -1){
             dayArr.push(daymap.indexOf(MsgArgs[i]));
@@ -260,7 +255,7 @@ function printLunchtimeInfo(event){
     lts = "LUNCHTIMES FOR THIS CHANNEL:\n";
     for(m=0;m<lunchtimes.length;m++){
         if(lunchtimes[m].channel == event.channel){
-            lts = lts.concat(lunchtimes[m].name,": ", (lunchtimes[m].permanent ? "recurring on " : "non-recurring on "), lunchtimes[m].dayStr, " at ", lunchtimes[m].hh, ":", lunchtimes[m].mm,".\n" );
+            lts = lts.concat(lunchtimes[m].name,": ", (lunchtimes[m].permanent ? "recurring on " : "non-recurring on "), lunchtimes[m].dayStr, " at ", lunchtimes[m].hh, ":", (lunchtimes[m].mm < 10 ? "0".concat(lunchtimes[m].mm) : lunchtimes[m].mm),".\n" );
         }
     }
     rtm.sendMessage(lts,event.channel);
