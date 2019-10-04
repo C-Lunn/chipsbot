@@ -243,6 +243,16 @@ function findLunchtime(inName){
     return -1;
 }
 
+function printLunchtimeInfo(event){
+    lts = "LUNCHTIMES FOR THIS CHANNEL:\n";
+    for(m=0;m<lunchtimes.length;m++){
+        if(lunchtimes[m].channel == event.channel){
+            lts = lts.concat(lunchtimes[m].name,": ", (lunchtimes[m].permanent ? "recurring on" : "non-recurring on"), lunchtimes[m].dayStr, " at ", lunchtime.hh, ":", lunchtime.mm,".\n" );
+        }
+    }
+    rtm.sendMessage(lts,event.channel);
+}
+
 //Chat handling functions
 
 rtm.on('message', (event) => { //this is a callback that occurs on every message sent to every channel the bot is in
@@ -277,30 +287,23 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 function CheckTime(){
     var now = new Date();
     MinInDay = (now.getHours()*60) + now.getMinutes();
-    if((MinInDay == (LunchTime.MinInDay-15)) && LunchTimeDeclared){ //15 minutes before set lunchtime
-        if (!AlertSent) rtm.sendMessage(subs().concat(" :rotating_light: :rotating_light: :rotating_light: LUNCH IN 15 MINUTES :rotating_light: :rotating_light: :rotating_light:"),"CMZ536P4M");
-        AlertSent = true; //don't keep sending alerts
+    LTtoday = 0;
+    for(j = 0;j<lunchtimes.length;j++){
+        lunchtimes[j].warn(MinInDay,now.getDay());
+        if(lunchtimes[j].day.indexOf(now.getDay()) != -1){
+            LTtoday++;
+        }
     }
-    else if((MinInDay == LunchTime.MinInDay) && LunchTimeDeclared){
-        if (!AlertSent) rtm.sendMessage(subs().concat(" :rotating_light: :fries: :rotating_light: :fries: :rotating_light: LUNCH TIME :rotating_light: :fries: :rotating_light: :fries: :rotating_light:"),"CMZ536P4M");
-        AlertSent = true;
-    }
-    else{
-        AlertSent = false;
-    }
-    if(now.getHours() == 10 && now.getMinutes() == 30 && !LunchTimeDeclared && (now.getDay != 6 || now.getDay != 0)){
-        if (!Reminded) rtm.sendMessage("Nobody has set a lunchtime yet. Think of the chips!","CMZ536P4M");
+    if(now.getHours() == 10 && now.getMinutes() == 30 && LTtoday == 0 && (now.getDay() != 6 || now.getDay() != 0)){
+    if (!Reminded) rtm.sendMessage("Nobody has set a lunchtime yet. Think of the chips!","CMZ536P4M");
         Reminded = true;
     }
     else{
         Reminded = false;
     }
-    if(now.getHours() == 0 && LunchTimeDeclared){
-        LunchTimeDeclared = false;
-    }
     if(now.getHours() == 0 && bets.length != 0){
-        betp.length = 0;
-        bets.length = 0;
+    betp.length = 0;
+    bets.length = 0;
     }
     CheckMenuValidity(now);
     delete(now); //dont create a new date variable every 10 seconds
@@ -346,6 +349,10 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
         case "check":
+            if(MsgArgs.length == 3){
+                printLunchtimeInfo(event);
+                break;
+            }
             jetzt = new Date();
             lts = findLunchtime(MsgArgs[3])
             if(lts != -1) lunchtimes[lts].check(jetzt, event);
