@@ -56,6 +56,8 @@ class Lunchtime {
         }else if(now == this.mininDay && !this.alerted && this.day.indexOf(dayc) != -1){
             rtm.sendMessage(subs(this.subscribers).concat(" :rotating_light: :fries: :rotating_light: :fries: :rotating_light: LUNCH TIME \"", this.name, "\" :rotating_light: :fries: :rotating_light: :fries: :rotating_light:"),this.channel);
             this.alerted = true;
+            var now2 = new Date();
+            if(!this.permanent) this.day.splice(this.day.indexOf(now2.getDay()),1);
         }
         else if(now != this.mininDay && now != this.mininDay - 15){
             this.alerted = false;
@@ -261,11 +263,11 @@ function printLunchtimeInfo(event){
     rtm.sendMessage(lts,event.channel);
 }
 
-function lunchtimeCleanup(now){
+function lunchtimeCleanup(){
     for(i=0;i<lunchtimes.length;i++){
         if(!lunchtimes[i].permanent){
-            if(now.getDay() <= Math.max(...lunchtimes[i].day)){
-                deleteLunchtime(lunchtimes[i]);
+            if(lunchtimes[i].day.length == 0){
+                deleteLunchtime(i);
             }
         }
     }
@@ -324,7 +326,7 @@ function CheckTime(){
     bets.length = 0;
     }
     CheckMenuValidity(now);
-    if(now.getHours() == 0 && now.getMinutes() == 0) lunchtimeCleanup(now);
+    lunchtimeCleanup();
     delete(now); //dont create a new date variable every 10 seconds
 }
 
