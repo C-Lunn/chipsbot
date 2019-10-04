@@ -16,32 +16,32 @@ const daymap = ["sunday","monday","tuesday","wednesday","thursday","friday","sat
 
 //class definitions
 class Lunchtime {
-    constructor(hh,mm,name,day,permanent,event){
+    constructor(hh,mm,name,day,event){
         this.hh = hh;
         this.mm = mm;
         this.name = name;
         this.subscribers = [];
         this.day = day;
-        this.permanent = permanent;
+        this.permanent = false;
         this.channel = event.channel
         this.mininDay = hh*60 + mm;
-        this.alerted = false;
-        this.dayStr = [];
-        for(i=0;i<day.length;i++){
-            this.dayStr = this.dayStr.concat(Daymap[this.day[i]], (i = day.length-1 ? "." : ", "));
+        this.alerted;
+        this.dayStr = "";
+        for(var i=0;i<day.length;i++){
+            this.dayStr = this.dayStr.concat(Daymap[this.day[i]], (i == day.length-1 ? "." : ", "));
         }
-        rtm.sendMessage("Lunchtime ".concat(this.name, " at ",this.hh,":",this.mm," on ", dayStr, " This lunchtime will ", (this.permament ? "" : "not "), "recur."), event.channel);
+        rtm.sendMessage("Lunchtime ".concat(this.name, " at ",this.hh,":",this.mm," on ", this.dayStr, " This lunchtime will ", (this.permament ? "" : "not "), "recur."), event.channel);
     }
     addSubscriber(event){
-        if(this.subscribers.indexOf(uname) != -1){
+        if(this.subscribers.indexOf(event.user) != -1){
             rtm.sendMessage("You are already subscribed, <@".concat(event.user, ">. To unsubscribe, type @chipsbot lunchtime ", this.name, " unsubscribe."),event.channel);
         } else {
-            this.subscribers.push(uname);
+            this.subscribers.push(event.user);
             rtm.sendMessage("Thanks, <@".concat(event.user, ">. You are now subscribed to lunch warnings for the ",this.name," lunchtime."),event.channel);
         }
     }
     removeSubscriber(event){
-        if(this.subscribers.indexOf(uname) == -1){
+        if(this.subscribers.indexOf(event.user) == -1){
             rtm.sendMessage("You are not subscribed, <@".concat(event.user, ">. To subscribe, type @chipsbot lunchtime ", this.name, " subscribe."),event.channel);
 
         } else {
@@ -57,7 +57,9 @@ class Lunchtime {
             rtm.sendMessage(subs(this.subscribers).concat(" :rotating_light: :fries: :rotating_light: :fries: :rotating_light: LUNCH TIME \"", this.name, "\" :rotating_light: :fries: :rotating_light: :fries: :rotating_light:"),this.channel);
             this.alerted = true;
         }
-        else{ this.alerted = false; }
+        else if(now != this.mininDay && now != this.mininDay - 15){
+            this.alerted = false;
+        }
     }
     check(now,eventc){
         dayStr = "";
@@ -73,6 +75,7 @@ class Lunchtime {
             rtm.sendMessage(((MinToGo > 0) ? "This lunchtime is ".concat(MinToGo, " minutes from now.") : "This lunchtime was ".concat(Math.abs(MinToGo), " minutes ago.")),eventc.channel);
         }
 
+    }
 }
 
 //Global variables
@@ -125,7 +128,7 @@ function SaveSubsFile(){
 function subs(inArr){ //gets all the subscribers and puts them into a string suitable for message
     var StrToRet = "";
     for (i = 0; i < inArr.length; i++){
-        StrToRet = StrToRet.concat("<@",subscribers[i], "> ");
+        StrToRet = StrToRet.concat("<@",inArr[i], "> ");
     }
     return StrToRet;
 }
@@ -204,6 +207,7 @@ function setLunchtime(MsgArgs, event){
             return;
         }
     }
+    if(TimeRegExp.test(MsgArgs[3])){rtm.sendMessage("Incorrect command format. Use @chipsbot lunchtime set <name> <hh:mm> [day1] [day2]. Arguments in [] are optional.",event.channel); return;}
     if(!TimeRegExp.test(MsgArgs[4])){rtm.sendMessage("Please enter a time in the form hh:mm.",event.channel); return;}
     var lth = parseInt(MsgArgs[4].slice(0,2));
     var ltm = parseInt(MsgArgs[4].slice(3)); //grab the time in xx:yy and convert to integers
@@ -211,13 +215,22 @@ function setLunchtime(MsgArgs, event){
         rtm.sendMessage("Please enter a valid time.",channel);
         return;
     }
+    now = new Date();
+    if(MsgArgs.length = 5){  // lunchtime set name hh:mm <end>
+        dayArr = [now.getDay()];
+        lunchtimes.push(new Lunchtime(lth,ltm,MsgArgs[3],dayArr,event));
+        return;
+    }
     dayArr = [];
     for(i=5;i<MsgArgs.length;i++){
         if(daymap.indexOf(MsgArgs[i]) != -1){
-            dayArr.push(dayArr[i]);
+            dayArr.push(daymap.indexOf(MsgArgs[i]));
         }
     }
-    lunchtimes.push(new Lunchtime(lth,ltm,MsgArgs[3],dayArr,MsgArgs[4],event));
+    if(dayArr.length == 0) {
+        dayArr.push(now.getDay());
+    }
+    lunchtimes.push(new Lunchtime(lth,ltm,MsgArgs[3],dayArr,event));
 }
 
 function removeLunchtime(MsgArgs,event){
@@ -238,7 +251,7 @@ function deleteLunchtime(lt){
 
 function findLunchtime(inName){
     for(j = 0;j<lunchtimes.length;j++){
-        if(lunchtimes[j].name = inName){ return j; }
+        if(lunchtimes[j].name == inName){ return j; }
     }
     return -1;
 }
@@ -247,10 +260,20 @@ function printLunchtimeInfo(event){
     lts = "LUNCHTIMES FOR THIS CHANNEL:\n";
     for(m=0;m<lunchtimes.length;m++){
         if(lunchtimes[m].channel == event.channel){
-            lts = lts.concat(lunchtimes[m].name,": ", (lunchtimes[m].permanent ? "recurring on" : "non-recurring on"), lunchtimes[m].dayStr, " at ", lunchtime.hh, ":", lunchtime.mm,".\n" );
+            lts = lts.concat(lunchtimes[m].name,": ", (lunchtimes[m].permanent ? "recurring on " : "non-recurring on "), lunchtimes[m].dayStr, " at ", lunchtimes[m].hh, ":", lunchtimes[m].mm,".\n" );
         }
     }
     rtm.sendMessage(lts,event.channel);
+}
+
+function lunchtimeCleanup(now){
+    for(i=0;i<lunchtimes.length;i++){
+        if(!lunchtimes[i].permanent){
+            if(now.getDay() <= Math.max(...lunchtimes[i].day)){
+                deleteLunchtime(lunchtimes[i]);
+            }
+        }
+    }
 }
 
 //Chat handling functions
@@ -306,6 +329,7 @@ function CheckTime(){
     bets.length = 0;
     }
     CheckMenuValidity(now);
+    if(now.getHours() == 0 && now.getMinutes() == 0) lunchtimeCleanup(now);
     delete(now); //dont create a new date variable every 10 seconds
 }
 
@@ -340,12 +364,13 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             break;
         case "subscribe":
             lts = findLunchtime(MsgArgs[3])
-            if(lts != -1) lunchtimes[lts].subscribe(event);
+            console.log(lts);
+            if(lts != -1) lunchtimes[lts].addSubscriber(event);
             else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
         case "unsubscribe":
             lts = findLunchtime(MsgArgs[3])
-            if(lts != -1) lunchtimes[lts].unsubscribe(event);
+            if(lts != -1) lunchtimes[lts].removeSubscriber(event);
             else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
         case "check":
@@ -364,10 +389,24 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
         case "menu":
             menuHandler(MsgArgs,event);
             break;
-
+        case "unsetperm":
+            lts = findLunchtime(MsgArgs[3])
+            if(lts != -1){
+                lunchtimes[lts].permanent = false;
+                rtm.sendMessage("Lunchtime ".concat(MsgArgs[3], " set to non-recurring."), event.channel);
+            }
+            else { rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);}
+            break;
+        case "setperm":
+            lts = findLunchtime(MsgArgs[3])
+            if(lts != -1){
+                lunchtimes[lts].permanent = true;
+                rtm.sendMessage("Lunchtime ".concat(MsgArgs[3], " set to recurring."), event.channel);
+            }
+            else{ rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);}
+            break;
     }
 }
-
 function betHandler(MsgArgs,event){
     switch(MsgArgs[2]){
         case "place":
