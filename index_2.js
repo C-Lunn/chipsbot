@@ -204,7 +204,7 @@ function setLunchtime(MsgArgs, event){
             return;
         }
     }
-    TimeRegExp.test(MsgArgs[4]);
+    if(!TimeRegExp.test(MsgArgs[4])){rtm.sendMessage("Please enter a time in the form hh:mm.",event.channel); return;}
     var lth = parseInt(MsgArgs[4].slice(0,2));
     var ltm = parseInt(MsgArgs[4].slice(3)); //grab the time in xx:yy and convert to integers
     if(lth > 23 || ltm > 59){
@@ -236,6 +236,12 @@ function deleteLunchtime(lt){
     lunchtimes.splice(lt,1);
 }
 
+function findLunchtime(inName){
+    for(j = 0;j<lunchtimes.length;j++){
+        if(lunchtimes[j].name = inName){ return j; }
+    }
+    return -1;
+}
 
 //Chat handling functions
 
@@ -327,31 +333,26 @@ function chipsHandler(MsgArgs, event){ //handle chips
 function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
     switch(MsgArgs[2]){
         case "set":
-        case "change":
-            var RightForm = TimeRegExp.test(MsgArgs[3]); //check if the time is in the right form
-            if(RightForm){
-                setLunchtime(MsgArgs[3],(MsgArgs[2] == "set" ? "s" : "c"), event.channel); //if set, then s, if change then c
-            }
-            else{
-                rtm.sendMessage("Please provide 24h time with leading zeroes in the format hh:mm.",event.channel);
-            }
+            setLunchtime(MsgArgs, event);
             break;
         case "subscribe":
-            AddSubscriber(event.user, event.channel);
+            lts = findLunchtime(MsgArgs[3])
+            if(lts != -1) lunchtimes[lts].subscribe(event);
+            else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
         case "unsubscribe":
-            RemoveSubscriber(event.user, event.channel);
+            lts = findLunchtime(MsgArgs[3])
+            if(lts != -1) lunchtimes[lts].unsubscribe(event);
+            else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
         case "check":
-            if(LunchTimeDeclared){
-                var now = new Date()
-                var nowMins = 60*now.getHours()+now.getMinutes();
-                var timeLeft = LunchTime.MinInDay-nowMins;}
-            if(timeLeft > 0 || !LunchTimeDeclared){
-                rtm.sendMessage((LunchTimeDeclared ? "Lunchtime today is set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ", ", timeLeft, " minutes from now.") : "Lunchtime has not been set for today."), event.channel);}
-            else{
-                rtm.sendMessage("Lunchtime today was set to ".concat(LunchTime.h, ":",  (LunchTime.m < 10 ? "0".concat(LunchTime.m) : LunchTime.m), ", ", Math.abs(timeLeft), " minutes ago."), event.channel);
-            }
+            jetzt = new Date();
+            lts = findLunchtime(MsgArgs[3])
+            if(lts != -1) lunchtimes[lts].check(jetzt, event);
+            else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
+            break;
+        case "remove":
+            removeLunchtime(MsgArgs,event);
             break;
         case "menu":
             menuHandler(MsgArgs,event);
