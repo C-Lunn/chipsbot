@@ -12,7 +12,7 @@ var fs = require("fs");
 const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
 const Daymap = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const daymap = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-
+scoreboards = [];
 
 //class definitions
 class Lunchtime {
@@ -78,6 +78,58 @@ class Lunchtime {
     }
 }
 
+class Score{
+    constructor(user,score){
+        this.user = user;
+        this.name = rtm.webClient.users.info({user: this.user}).name;
+        this.score = score;
+    }
+    addscore(toadd){
+        this.score += toadd;
+    }
+    resetscore(){
+        this.score = 0;
+    }
+}
+
+class Scoreboard{
+    constructor(event, scores){
+        this.ev = event;
+        this.channel = event.channel;
+        this.scores = scores;
+    }
+    addUser(event,score){
+        this.scores.push(new Score(event.user,score));
+    }
+    refreshLeaderboard(){
+       this.scores.sort(function(a,b){return b["score"]-a["score"];})
+    }
+    printScores(event){
+        rtm.sendMessage("COUNTDOWN SCOREBOARD:",event.channel);
+        var StringToSend = "";
+        for(var z = 0; z < this.scores.length; z++){
+            StringToSend = StringToSend.concat(z+1,": <@", this.scores[z].user,">: ",this.scores[z].score," points.\n");
+        }
+        rtm.sendMessage(StringToSend,event.channel);
+    }
+
+    queryScore(event){
+        var PosInSb = this.getUserPos(event.user);
+        if (PosInSb == -1) {rtm.sendMessage("<@".concat(event.user,">, I don't have you down as having any points."),event.channel);}
+        else{
+        rtm.sendMessage("<@".concat(event.user, ">, you have ",this.scores[PosInSb].score," points. You are number ", PosInSb+1, " on the leaderboard."),event.channel);
+        }
+    }
+
+    getUserPos(user){
+        for(var k = 0; k < this.scores.length; k++){
+            if(this.scores[k].user == user){
+                return k;
+            }
+        }
+        return -1;
+    }
+}
 //Global variables
 var lunchtimes = [];
 var TheMenu;
@@ -100,30 +152,9 @@ const TimeRegExp = /\d\d:\d\d/; //format for time
 GetMenuFromFile();
 GetValidityFromFile();
 loadLunchtimes();
+loadScoreboards();
+console.log(scoreboards);
 //Subscriber function defs
-
-function ReadSubsIn(){ //reads the subscribers in from file on startup
-    fs.readFile("sub.txt", function(err,buf) {
-        ArrayPos = 0;
-        ComPos = 0;
-        retArray = []
-        SubsS = buf.toString();
-        while(SubsS.indexOf(",") != -1){
-            ComPos = SubsS.indexOf(",");
-            retArray[ArrayPos++]=SubsS.slice(0,ComPos);
-            SubsS = SubsS.slice(ComPos+1,SubsS.length);
-        }
-        retArray[ArrayPos]=SubsS;
-        subscribers = retArray; //for some reason returning the array caused it to shit a brick so idk
-    })
-}
-
-
-function SaveSubsFile(){
-    fs.writeFile("sub.txt", subscribers, (err) => {
-        if (err) console.log(err);
-    });
-}
 
 function subs(inArr){ //gets all the subscribers and puts them into a string suitable for message
     var StrToRet = "";
@@ -313,6 +344,83 @@ function loadLunchtimes(){
     })
 }
 
+//Vorderbot tracking
+
+function getScoreboardChannelpos(event){
+    for(m=0;m<scoreboards.length;m++){
+        if(event.channel == scoreboards[m].channel){
+            return m;
+        }
+
+    }
+        return -1;
+}
+
+function handleVorderbot(event){
+    if(event.text.toLowerCase().indexOf("points") != -1 && event.text.toLowerCase().indexOf("longest") == -1){
+        TheUser = event.text.slice(2,11);
+        ThePoints = parseInt(event.text.slice(18,19));
+        if(getScoreboardChannelpos(event)==-1){
+            scoreboards.push(new Scoreboard(event,[]));
+        }
+        theLoc = getScoreboardChannelpos(event);
+        console.log(theLoc);
+        theUserPos = scoreboards[theLoc].getUserPos(TheUser);
+        if(theUserPos == -1){
+            scoreboards[theLoc].scores.push(new Score(TheUser,ThePoints))
+            scoreboards[theLoc].refreshLeaderboard();
+            saveScoreboards();
+            return;
+
+        }
+        scoreboards[theLoc].scores[theUserPos].addscore(ThePoints);
+        scoreboards[theLoc].refreshLeaderboard();
+        saveScoreboards();
+    }
+}
+
+function scoresHandler(MsgArgs,event){
+    TheBoard = getScoreboardChannelpos(event);
+    if(MsgArgs.length == 2){
+        if(TheBoard == -1){
+            rtm.sendMessage("I don't have any scores stored for this channel.",event.channel);
+        }
+        else{
+            scoreboards[TheBoard].printScores(event);
+        }
+    }
+    else if(MsgArgs[2] == "me"){
+        if(TheBoard == -1){
+            rtm.sendMessage("I don't have any scores stored for this channel.",event.channel);
+        }
+        else{
+        theUserPos = scoreboards[theLoc].getUserPos(event.user);
+            if(theUserPos == -1){
+                rtm.sendMessage("I don't have a score stored for <@".concat(event.user,">."),event.channel);
+            }
+            else{
+                scoreboards[TheBoard].refreshLeaderboard();
+                scoreboards[TheBoard].queryScore(event);
+            }
+        }
+    }
+}
+
+function saveScoreboards(){
+    fileWrite = JSON.stringify(scoreboards);
+    fs.writeFile("scoreboards",fileWrite, (err) => {
+                if (err) console.log(err);
+
+    });
+}
+
+function loadScoreboards(){
+    fs.readFile("scoreboards", function(err,buf){
+        bur = JSON.parse(buf.toString());
+        console.log(bur);
+    });
+}
+
 //Chat handling functions
 
 rtm.on('message', (event) => { //this is a callback that occurs on every message sent to every channel the bot is in
@@ -321,6 +429,9 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
     } //don't do stuff on 'hidden' messages such as edits
     const BotID = "@".concat(rtm.activeUserId); //grab the bot ID in @chipsbot form
     if(event.type == 'message'){
+        if(event.user == "W8RU4FJ95"){
+            handleVorderbot(event);
+        }
         if((event.text.toLowerCase().indexOf("chips") != -1) && (event.text.indexOf(BotID)) == -1){
             rtm.sendMessage("Did someone say chips?", event.channel);
         } //if untagged but someone says chips....
@@ -335,6 +446,9 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                     break;
                 case "bet":
                     betHandler(MsgArgs,event);
+                    break;
+                case "scores":
+                    scoresHandler(MsgArgs,event);
                     break;
                 default:
                     rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">."), event.channel);
