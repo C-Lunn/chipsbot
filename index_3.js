@@ -153,7 +153,6 @@ GetMenuFromFile();
 GetValidityFromFile();
 loadLunchtimes();
 loadScoreboards();
-console.log(scoreboards);
 //Subscriber function defs
 
 function subs(inArr){ //gets all the subscribers and puts them into a string suitable for message
@@ -364,7 +363,6 @@ function handleVorderbot(event){
             scoreboards.push(new Scoreboard(event,[]));
         }
         theLoc = getScoreboardChannelpos(event);
-        console.log(theLoc);
         theUserPos = scoreboards[theLoc].getUserPos(TheUser);
         if(theUserPos == -1){
             scoreboards[theLoc].scores.push(new Score(TheUser,ThePoints))
@@ -417,7 +415,13 @@ function saveScoreboards(){
 function loadScoreboards(){
     fs.readFile("scoreboards", function(err,buf){
         bur = JSON.parse(buf.toString());
-        console.log(bur);
+        for(i=0;i<bur.length;i++){
+            TheScoresArr = [];
+            for (k=0;k<bur[i].scores.length;k++){
+                TheScoresArr.push(new Score(bur[i].scores[k].user,parseInt(bur[i].scores[k].score)));
+            }
+            scoreboards.push(new Scoreboard(bur[i].ev, TheScoresArr));
+        }
     });
 }
 
