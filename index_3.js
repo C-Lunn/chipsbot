@@ -6,16 +6,12 @@
 //Set up RTM api, proxy, and file system reader
 const { RTMClient, CLIENT_EVENTS, RTM_EVENTS } = require('@slack/rtm-api');
 const token = process.env.CHIPSTOKEN; //CHIPSTOKEN is an environment variable set with the token in (so it's not published to github)
-const HttpsProxyAgent = require('https-proxy-agent');
-const proxyUrl = process.env.http_proxy //likewise for the proxy
+//const HttpsProxyAgent = require('https-proxy-agent');
+//const proxyUrl = process.env.http_proxy //likewise for the proxy
 var fs = require("fs");
-const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
-const Daymap = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
-const daymap = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
-scoreboards = [];
-
-//class definitions
-class Lunchtime {
+//const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
+const rtm = new RTMClient(token); //creates a new RTM bot
+class Lunchtime { //describes a lunchtime
     constructor(hh,mm,name,day,event,permanency,subz,loaded){
         this.ev = event;
         this.hh = hh;
@@ -29,7 +25,7 @@ class Lunchtime {
         this.alerted;
         this.dayStr = "";
         this.loaded = loaded;
-        for(var i=0;i<day.length;i++){
+        for(var i=0;i<day.length;i++){ //changes days into numbers
             this.dayStr = this.dayStr.concat(Daymap[this.day[i]], (i == day.length-1 ? "" : ", "));
         }
         if (!this.loaded) rtm.sendMessage("Lunchtime ".concat(this.name, " has been set for ",this.hh,":",(this.mm < 10 ? "0".concat(this.mm) : this.mm)," on ", this.dayStr, ". This lunchtime will ", (this.permanent ? "" : "not "), "recur."), event.channel);
@@ -78,58 +74,8 @@ class Lunchtime {
     }
 }
 
-class Score{
-    constructor(user,score){
-        this.user = user;
-        this.name = rtm.webClient.users.info({user: this.user}).name;
-        this.score = score;
-    }
-    addscore(toadd){
-        this.score += toadd;
-    }
-    resetscore(){
-        this.score = 0;
-    }
-}
 
-class Scoreboard{
-    constructor(event, scores){
-        this.ev = event;
-        this.channel = event.channel;
-        this.scores = scores;
-    }
-    addUser(event,score){
-        this.scores.push(new Score(event.user,score));
-    }
-    refreshLeaderboard(){
-       this.scores.sort(function(a,b){return b["score"]-a["score"];})
-    }
-    printScores(event){
-        rtm.sendMessage("COUNTDOWN SCOREBOARD:",event.channel);
-        var StringToSend = "";
-        for(var z = 0; z < this.scores.length; z++){
-            StringToSend = StringToSend.concat(z+1,": <@", this.scores[z].user,">: ",this.scores[z].score," points.\n");
-        }
-        rtm.sendMessage(StringToSend,event.channel);
-    }
 
-    queryScore(event){
-        var PosInSb = this.getUserPos(event.user);
-        if (PosInSb == -1) {rtm.sendMessage("<@".concat(event.user,">, I don't have you down as having any points."),event.channel);}
-        else{
-        rtm.sendMessage("<@".concat(event.user, ">, you have ",this.scores[PosInSb].score," points. You are number ", PosInSb+1, " on the leaderboard."),event.channel);
-        }
-    }
-
-    getUserPos(user){
-        for(var k = 0; k < this.scores.length; k++){
-            if(this.scores[k].user == user){
-                return k;
-            }
-        }
-        return -1;
-    }
-}
 //Global variables
 var lunchtimes = [];
 var TheMenu;
@@ -152,7 +98,12 @@ const TimeRegExp = /\d\d:\d\d/; //format for time
 GetMenuFromFile();
 GetValidityFromFile();
 loadLunchtimes();
-loadScoreboards();
+
+
+
+
+
+
 //Subscriber function defs
 
 function subs(inArr){ //gets all the subscribers and puts them into a string suitable for message
@@ -323,6 +274,7 @@ function saveLunchtimes(){
 }
 
 function loadLunchtimes(){
+    if(fs.existsSync("lunchtimez")){
     fs.readFile("lunchtimez", function(err,buf) {
         ArrayPos = 0;
         ComPos = 0;
@@ -341,88 +293,7 @@ function loadLunchtimes(){
             lunchtimes[i] = new Lunchtime(theCurObj.hh,theCurObj.mm,theCurObj.name,theCurObj.day,theCurObj.ev,theCurObj.permanent,theCurObj.subscribers,true);
         }
     })
-}
-
-//Vorderbot tracking
-
-function getScoreboardChannelpos(event){
-    for(m=0;m<scoreboards.length;m++){
-        if(event.channel == scoreboards[m].channel){
-            return m;
-        }
-
     }
-        return -1;
-}
-
-function handleVorderbot(event){
-    if(event.text.toLowerCase().indexOf("points") != -1 && event.text.toLowerCase().indexOf("longest") == -1){
-        TheUser = event.text.slice(2,11);
-        ThePoints = parseInt(event.text.slice(18,19));
-        if(getScoreboardChannelpos(event)==-1){
-            scoreboards.push(new Scoreboard(event,[]));
-        }
-        theLoc = getScoreboardChannelpos(event);
-        theUserPos = scoreboards[theLoc].getUserPos(TheUser);
-        if(theUserPos == -1){
-            scoreboards[theLoc].scores.push(new Score(TheUser,ThePoints))
-            scoreboards[theLoc].refreshLeaderboard();
-            saveScoreboards();
-            return;
-
-        }
-        scoreboards[theLoc].scores[theUserPos].addscore(ThePoints);
-        scoreboards[theLoc].refreshLeaderboard();
-        saveScoreboards();
-    }
-}
-
-function scoresHandler(MsgArgs,event){
-    TheBoard = getScoreboardChannelpos(event);
-    if(MsgArgs.length == 2){
-        if(TheBoard == -1){
-            rtm.sendMessage("I don't have any scores stored for this channel.",event.channel);
-        }
-        else{
-            scoreboards[TheBoard].printScores(event);
-        }
-    }
-    else if(MsgArgs[2] == "me"){
-        if(TheBoard == -1){
-            rtm.sendMessage("I don't have any scores stored for this channel.",event.channel);
-        }
-        else{
-        theUserPos = scoreboards[theLoc].getUserPos(event.user);
-            if(theUserPos == -1){
-                rtm.sendMessage("I don't have a score stored for <@".concat(event.user,">."),event.channel);
-            }
-            else{
-                scoreboards[TheBoard].refreshLeaderboard();
-                scoreboards[TheBoard].queryScore(event);
-            }
-        }
-    }
-}
-
-function saveScoreboards(){
-    fileWrite = JSON.stringify(scoreboards);
-    fs.writeFile("scoreboards",fileWrite, (err) => {
-                if (err) console.log(err);
-
-    });
-}
-
-function loadScoreboards(){
-    fs.readFile("scoreboards", function(err,buf){
-        bur = JSON.parse(buf.toString());
-        for(i=0;i<bur.length;i++){
-            TheScoresArr = [];
-            for (k=0;k<bur[i].scores.length;k++){
-                TheScoresArr.push(new Score(bur[i].scores[k].user,parseInt(bur[i].scores[k].score)));
-            }
-            scoreboards.push(new Scoreboard(bur[i].ev, TheScoresArr));
-        }
-    });
 }
 
 //Chat handling functions
@@ -433,12 +304,13 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
     } //don't do stuff on 'hidden' messages such as edits
     const BotID = "@".concat(rtm.activeUserId); //grab the bot ID in @chipsbot form
     if(event.type == 'message'){
-        if(event.user == "W8RU4FJ95"){
-            handleVorderbot(event);
-        }
-        if((event.text.toLowerCase().indexOf("chips") != -1) && (event.text.indexOf(BotID)) == -1){
-            rtm.sendMessage("Did someone say chips?", event.channel);
-        } //if untagged but someone says chips....
+       if((event.text.toLowerCase().indexOf("chips") != -1) && (event.text.indexOf(BotID)) == -1){
+           var RTM_EVENTS = require('@slack/client').RTM_EVENTS;
+           rtm.sendMessage("Did someone say chips?", event.channel);
+
+       } else if((event.text.toLowerCase().indexOf("linux") != -1) && (event.text.indexOf(BotID)) == -1 && event.text.toLowerCase().indexOf("gnu/linux") == -1 && event.text.toLowerCase().indexOf("gnu plus linux") == -1 && event.text.toLowerCase().indexOf("gnu + linux") == -1){
+           rtm.addOutgoingEvent(true, 'message', {text : "I'd just like to interject for a moment.  What you're referring to as Linux, is in fact, GNU/Linux, or as I've recently taken to calling it, GNU plus Linux. Linux is not an operating system unto itself, but rather another free component of a fully functioning GNU system made useful by the GNU corelibs, shell utilities and vital system components comprising a full OS as defined by POSIX.\n\n Many computer users run a modified version of the GNU system every day, without realizing it.  Through a peculiar turn of events, the version of GNU which is widely used today is often called \"Linux\", and many of its users are not aware that it is basically the GNU system, developed by the GNU Project. There really is a Linux, and these people are using it, but it is just a part of the system they use. \n\n Linux is the kernel: the program in the system that allocates the machine's resources to the other programs that you run. The kernel is an essential part of an operating system, but useless by itself; it can only function in the context of a complete operating system.  Linux is normally used in combination with the GNU operating system: the whole system is basically GNU with Linux added, or GNU/Linux.  All the so-called \"Linux\" distributions are really distributions of GNU/Linux.", channel : event.channel, thread_ts : event.ts});
+       } //if untagged but someone says chips....
         MsgArgs = parseMessage(event.text); //get the message args as an array
         if(MsgArgs[0] == "<".concat(BotID.toLowerCase(),">")){  //if first arg of message is @chipsbot then start doing stuff
             switch(MsgArgs[1]){ //switch on the first word
@@ -451,10 +323,7 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                 case "bet":
                     betHandler(MsgArgs,event);
                     break;
-                case "scores":
-                    scoresHandler(MsgArgs,event);
-                    break;
-                default:
+               default:
                     rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">."), event.channel);
             }
         }
