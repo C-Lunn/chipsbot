@@ -11,6 +11,8 @@ const token = process.env.CHIPSTOKEN; //CHIPSTOKEN is an environment variable se
 var fs = require("fs");
 //const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
 const rtm = new RTMClient(token); //creates a new RTM bot
+const Daymap = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+const daymap = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
 class Lunchtime { //describes a lunchtime
     constructor(hh,mm,name,day,event,permanency,subz,loaded){
         this.ev = event;
