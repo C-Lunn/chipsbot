@@ -322,6 +322,12 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                     break;
                 case "bet":
                     betHandler(MsgArgs,event);
+                    break;i
+                case "menu":
+                    menuHandler(MsgArgs, event, -1);
+                    break;
+                case "help":
+                    helpHandler(MsgArgs, event);
                     break;
                default:
                     rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">."), event.channel);
@@ -331,7 +337,7 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 });
 
 
-function CheckTime(){
+function CheckTime(){ //function to run on time callback (every 10 seconds)
     var now = new Date();
     MinInDay = (now.getHours()*60) + now.getMinutes();
     LTtoday = 0;
@@ -346,15 +352,15 @@ function CheckTime(){
         Reminded = true;
     }
     else{
-        Reminded = false;
+        Reminded = false; //only remind once rather than 6 times within the minute
     }
     if(now.getHours() == 0 && bets.length != 0){
     betp.length = 0;
     bets.length = 0;
     }
-    CheckMenuValidity(now);
+    CheckMenuValidity(now); //check if the menu is still valid
     lunchtimeCleanup();
-    delete(now); //dont create a new date variable every 10 seconds
+    delete(now); //dont create a new date variable every 10 seconds [not really necessary]
 }
 
 function parseMessage(inputString){ //return each word in a message as an entry in an array
@@ -382,7 +388,7 @@ function chipsHandler(MsgArgs, event){ //handle chips
 }
 
 function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
-    switch(MsgArgs[2]){
+    switch(MsgArgs[2]){ //switch on the 2nd word of the string
         case "set":
             setLunchtime(MsgArgs, event);
             break;
@@ -396,21 +402,21 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             if(lts != -1) lunchtimes[lts].removeSubscriber(event);
             else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
-        case "check":
+        case "check": //either get a list of lunchtimes or info about one specific one
             if(MsgArgs.length == 3){
                 printLunchtimeInfo(event);
                 break;
             }
             jetzt = new Date();
-            lts = findLunchtime(MsgArgs[3])
+            lts = findLunchtime(MsgArgs[3]) //find the lunchtime by name
             if(lts != -1) lunchtimes[lts].check(jetzt, event);
             else rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);
             break;
         case "remove":
             removeLunchtime(MsgArgs,event);
             break;
-        case "menu":
-            menuHandler(MsgArgs,event);
+        case "menu": //can either go here or main
+            menuHandler(MsgArgs,event, 0);
             break;
         case "unsetperm":
             lts = findLunchtime(MsgArgs[3])
@@ -420,7 +426,7 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             }
             else { rtm.sendMessage("Could not find lunchtime with name \"".concat(MsgArgs[3],"\"."),event.channel);}
             break;
-        case "setperm":
+        case "setperm": //set permanent
             lts = findLunchtime(MsgArgs[3])
             if(lts != -1){
                 lunchtimes[lts].permanent = true;
@@ -436,7 +442,7 @@ function lunchtimeHandler(MsgArgs, event){ //handle lunchtime
             break;
     }
 }
-function betHandler(MsgArgs,event){
+function betHandler(MsgArgs,event){ //bets are pretty badly implemented atm
     switch(MsgArgs[2]){
         case "place":
             PlaceBet(MsgArgs,event);
@@ -447,12 +453,12 @@ function betHandler(MsgArgs,event){
     }
 }
 
-function menuHandler(MsgArgs, event){
+function menuHandler(MsgArgs, event, offset){
     DayMap = ["monday","tuesday","wednesday","thursday","friday"];
-    if(MsgArgs[3] == "validset"){
+    if(MsgArgs[3+offset] == "validset"){
         const DatRegEx = /^(\d)?\d\s(\d)?\d$/; //regexp for date
-        if(DatRegEx.test(MsgArgs[4].concat(" ",MsgArgs[5]))){
-            SetMenuValidity(MsgArgs[4],MsgArgs[5]);
+        if(DatRegEx.test(MsgArgs[4+offset].concat(" ",MsgArgs[5+offset]))){
+            SetMenuValidity(MsgArgs[4+offset],MsgArgs[5+offset]);
             rtm.sendMessage("Menu valid until ".concat(MenuValidUntil.getDate(),"/",MenuValidUntil.getMonth()+1,"."),event.channel);
             now = new Date();
             CheckMenuValidity(now); //recheck the menu's validity on setting
@@ -465,7 +471,7 @@ function menuHandler(MsgArgs, event){
     }
     if(MsgArgs[3] == "validcheck") { rtm.sendMessage((MenuIsValid ? "Menu is valid until ".concat(MenuValidUntil,".") : "Menu is not valid."),event.channel); return; }
     if(MenuIsValid){
-        if(MsgArgs.length == 3 || MsgArgs[3] == "today"){
+        if(MsgArgs.length == 3 || MsgArgs[3+offset] == "today"){
             now = new Date();
             today = (now.getDay()-1);
             if (today < 0) today = 6;
@@ -477,11 +483,11 @@ function menuHandler(MsgArgs, event){
             rtm.sendMessage(ArrtoSend.join("\n"),event.channel); //join all elements with a newline
 
         }
-        else if(DayMap.indexOf(MsgArgs[3]) != -1){
-            rtm.sendMessage("MENU FOR ".concat(MsgArgs[3].toUpperCase(),":\n"),event.channel)
+        else if(DayMap.indexOf(MsgArgs[3+offset]) != -1){
+            rtm.sendMessage("MENU FOR ".concat(MsgArgs[3+offset].toUpperCase(),":\n"),event.channel)
             ArrtoSend = []
             for(var key in TheMenu){
-                ArrtoSend.push(key.concat(": ",TheMenu[key][DayMap.indexOf(MsgArgs[3])]));
+                ArrtoSend.push(key.concat(": ",TheMenu[key][DayMap.indexOf(MsgArgs[3+offset])]));
             }
             rtm.sendMessage(ArrtoSend.join("\n"),event.channel);
         }
@@ -491,4 +497,43 @@ function menuHandler(MsgArgs, event){
     }
 }
 
+function helpHandler(MsgArgs, event){
+    if(MsgArgs.length == 2){
+    rtm.sendMessage(
+        `CHIPSBOT COMMANDS: \n
+        Type 'help <command>' for more info.
+        \`lunchtime\`: Set reminders for lunchtimes.
+        \`menu\`: Look at this week's menu.
+        \`bet\`: Betting functions (that don't really do anything).`, event.channel
+    );}
+    else {
+        switch(MsgArgs[2]){
+            case "lunchtime":
+                rtm.sendMessage(
+                    `\`lunchtime set <name> <hh:mm> [day1] [day2]...\`: Create a new lunchtime. Day arguments are optional.
+                    \`lunchtime subscribe <name>\`: Subscribe to an existing lunchtime.
+                    \`lunchtime unsubscrine <name>\`: Unsubscribe from an existing lunchtime.
+                    \`lunchtime check [name]\`: Without name for a list of all active lunchtimes for this channel, with name for one specific lunchtime.
+                    \`lunchtime remove <name>\`: Remove a lunchtime.
+                    \`lunchtime setperm/unsetperm <name>\`: Make a lunchtime recurring or not.
+                    `,event.channel
+                );
+                break;
+            case "menu":
+                rtm.sendMessage(
+                    `\`menu\`: Displays the menu for this week (if one exists).
+                    \` menu <day> \`: Displays the menu for a certain day. "today" is a valid input.
+                    \`menu validcheck\`: Displays the date until which the menu is valid.
+                    `,event.channel
+                );
+                break;
+            case "bet":
+                rtm.sendMessage("Don't bother m8.",event.channel);
+                break;
+            case "default":
+                rtm.sendMessage("Didn't find that command.", event.channel);
+                break;
+        }
+    }
+}
 
