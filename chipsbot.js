@@ -119,14 +119,16 @@ function subs(inArr){ //gets all the subscribers and puts them into a string sui
 //Menu function defs
 
 function GetMenuFromFile(){
+    if(fs.existsSync("menu.json")){ //check if menu exists and don't try to load it
     fs.readFile("menu.json", function(err,buf){
         TheMenu = JSON.parse(buf);
     });
+    }
 }
 
 function GetValidityFromFile(){
     fs.readFile("menuvalid", function(err,buf){
-        if (err) {MenuValidUntil = -1; return;}
+        if (err) {MenuValidUntil = -1; return;} //no validity file found
         MenuValidUntil = new Date(buf.toString());
     });
 }
@@ -216,7 +218,7 @@ function setLunchtime(MsgArgs, event){
     saveLunchtimes();
 }
 
-function removeLunchtime(MsgArgs,event){
+function removeLunchtime(MsgArgs,event){ //user deleting a lunchtime
     for(k=0;k<lunchtimes.length;k++){
         if(MsgArgs[3] == lunchtimes[k].name){
             n = lunchtimes[k].name
@@ -228,19 +230,19 @@ function removeLunchtime(MsgArgs,event){
     }
 }
 
-function deleteLunchtime(lt){
+function deleteLunchtime(lt){ //just deletes silently
     lunchtimes.splice(lt,1);
     saveLunchtimes();
 }
 
-function findLunchtime(inName){
+function findLunchtime(inName){ //gets position of a lunchtime in the array
     for(j = 0;j<lunchtimes.length;j++){
         if(lunchtimes[j].name == inName){ return j; }
     }
     return -1;
 }
 
-function printLunchtimeInfo(event){
+function printLunchtimeInfo(event){ //shows lunchtimes
     lts = "LUNCHTIMES FOR THIS CHANNEL:\n";
     for(m=0;m<lunchtimes.length;m++){
         if(lunchtimes[m].channel == event.channel){
@@ -250,7 +252,7 @@ function printLunchtimeInfo(event){
     rtm.sendMessage(lts,event.channel);
 }
 
-function lunchtimeCleanup(){
+function lunchtimeCleanup(){ //deletes non-permanent lunchtimes after they've been alerted
     for(i=0;i<lunchtimes.length;i++){
         if(!lunchtimes[i].permanent){
             if(lunchtimes[i].day.length == 0){
@@ -260,7 +262,7 @@ function lunchtimeCleanup(){
     }
 }
 
-function saveLunchtimes(){
+function saveLunchtimes(){ //saves lunchtimes to file
     ltsarr = [];
     fileToWrite = "";
     for(i=0;i<lunchtimes.length;i++){
@@ -274,15 +276,15 @@ function saveLunchtimes(){
 }
 
 function loadLunchtimes(){
-    if(fs.existsSync("lunchtimez")){
-    fs.readFile("lunchtimez", function(err,buf) {
+    if(fs.existsSync("lunchtimez")){ //check if lunchtimes file exists, and if it doesn't don't try and load it.
+    fs.readFile("lunchtimez", function(err,buf) { //read file
         ArrayPos = 0;
         ComPos = 0;
         retArray = [];
         jsonArray = [];
         parsedarray = []
         strobs = buf.toString();
-        while(strobs.indexOf("%") != -1){
+        while(strobs.indexOf("%") != -1){ //tear apart file and reconstruct lunchtimes
             ComPos = strobs.indexOf("%");
             jsonArray[ArrayPos++]=strobs.slice(0,ComPos);
             strobs = strobs.slice(ComPos+1,strobs.length);
@@ -290,7 +292,7 @@ function loadLunchtimes(){
         jsonArray[ArrayPos]=strobs;
         for(i = 0; i < jsonArray.length; i++){
             theCurObj = JSON.parse(jsonArray[i]);
-            lunchtimes[i] = new Lunchtime(theCurObj.hh,theCurObj.mm,theCurObj.name,theCurObj.day,theCurObj.ev,theCurObj.permanent,theCurObj.subscribers,true);
+            lunchtimes[i] = new Lunchtime(theCurObj.hh,theCurObj.mm,theCurObj.name,theCurObj.day,theCurObj.ev,theCurObj.permanent,theCurObj.subscribers,true); //reconstruct lunchtime
         }
     })
     }
