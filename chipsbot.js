@@ -333,6 +333,9 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
                 case "help":
                     helpHandler(MsgArgs, event);
                     break;
+                case "words":
+                    words(MsgArgs, event);
+                    break;
                default:
                     rtm.sendMessage("I don't recognise the input \"".concat(MsgArgs[1], "\". Please have some chips and then try again, <@", event.user, ">."), event.channel);
             }
@@ -340,6 +343,9 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 	}
 });
 
+function words(MsgArgs, event){
+    rtm.sendMessage("`C` `H` `I` `P` `S` (1 vowel, 4 consonants)  you have 30 seconds.....", event.channel)
+}
 
 function CheckTime(){ //function to run on time callback (every 10 seconds)
     var now = new Date();
