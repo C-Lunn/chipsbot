@@ -85,24 +85,24 @@ var qs = require('querystring');
 
 const express = require('express')
 const app = express()
-const port = 3000
+const port = 3000 //create Express server on port 3000
 
 
-app.listen(port, () => console.log(""))
+app.listen(port, () => console.log("")) //listen on port 3000
 
-app.use(express.static('form'))
+app.use(express.static('form')) //serve the 'form' folder to browsers
 
-app.post('/', function (request, res) {
+app.post('/', function (request, res) { //stuff to do on POST request (i.e. submitting the menu)
         var body = '';
 
         request.on('data', function (data) {
             body += data;
 
-        });
+        }); //process the data to the body
 
 
         request.on('end', function () {
-            var post = qs.parse(body);
+            var post = qs.parse(body); //use QS to extract the POST data
             // use post['blah'], etc.
             ParsePOSTMenu(post);
             res.redirect('done.html');
@@ -123,7 +123,7 @@ function ParsePOSTMenu(PostMenu){
     ArrV = []
     for (key in PostMenu) {
         ArrV.push(PostMenu[key]);
-    }
+    } //turn from a weird key based object thing into a GOOD OLD FASHIONED ARRAY
 
     for (var j=0;j<25;j+=5){
         newMenu.Soup.push(ArrV[j]);
@@ -131,13 +131,15 @@ function ParsePOSTMenu(PostMenu){
         newMenu.Theatre.push(ArrV[j+2]);
         newMenu.Light.push(ArrV[j+3]);
         newMenu.Side.push(ArrV[j+4]);
-    }
+    } //form of data is known so this is cheap but easy
     TheMenu = newMenu;
     theNow = new Date();
 
     //get date at end of week
 
-    Sunday = new Date(theNow - (theNow.getDay()*86400000) + (7*86400000));
+    Sunday = new Date(theNow - (theNow.getDay()*86400000) + (7*86400000)); //get the end of the week
+    Sunday.setHours(22);
+    Sunday.setMinutes(0); //22:00 on Sunday
 
     MenuValidUntil = Sunday;
     SaveMenuToFile();
