@@ -1,0 +1,136 @@
+.chipsform {
+	position: relative;
+}
+
+html, body {
+	margin: 0;
+	border: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	/*background-image:url(chipsground.gif);*/
+}
+
+.chipsheader {
+	margin: 0 auto;
+	width: 480px;
+	height: 80px;
+	text-align: center;
+	line-height: 90px;
+}
+	
+	
+
+body{
+	background-color: lightblue;
+	font-family: "Arial"
+}
+/* Clearfix hack by Nicolas Gallagher: http://nicolasgallagher.com/micro-clearfix-hack/ */
+.chipsform:before, 
+.chipsform:after { 
+	content: " "; display: table; 
+}
+.chipsform:after { 
+	clear: both; 
+}
+.monday_column {
+	width: 20%;
+	padding: 20px 10px;
+	float: left;
+	box-sizing: border-box;
+}
+.chipsform label {
+	display: block;
+	padding: 10px 5px 5px 2px;
+	font-size: 1.1em;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	cursor: pointer;
+}
+.chipsform input,
+.chipsform textarea,
+.chipsform select {
+	font-family: 'Lato', Calibri, Arial, sans-serif;
+	line-height: 1.5;
+	font-size: 1.4em;
+	padding: 5px 10px;
+	color: #000;
+	display: block;
+	width: 100%;
+	background: white;
+}
+.chipsform input,
+.chipsform textarea {
+	border: 3px solid #fff;
+}
+.chipsform textarea {
+	min-height: 200px;
+}
+.chipsform input:focus,
+.chipsform textarea:focus,
+.chipsform label:active + input,
+.chipsform label:active + textarea {
+	outline: none;
+	border: 3px solid #10689a;
+}
+.chipsform select:focus {
+	outline: none;
+}
+::-webkit-input-placeholder { /* WebKit browsers */
+    color: #10689a;
+    font-style: italic;
+}
+:-moz-placeholder { /* Mozilla Firefox 4 to 18 */
+    color: #10689a;
+    font-style: italic;
+}
+::-moz-placeholder { /* Mozilla Firefox 19+ */
+    color: #10689a;
+    font-style: italic;
+}
+:-ms-input-placeholder { /* Internet Explorer 10+ */
+    color: #10689a;
+    font-style: italic;
+}
+.cbp-mc-submit-wrap {
+	text-align: center;
+	padding-top: 40px;
+	clear: both;
+}
+.chipsform input.cbp-mc-submit {
+	background: #10689a;
+	border: none;
+	color: #fff;
+	width: auto;
+	cursor: pointer;
+	text-transform: uppercase;
+	display: inline-block;
+	padding: 15px 30px;
+	font-size: 1.1em;
+	border-radius: 2px;
+	letter-spacing: 1px;
+	box-sizing:border-box;
+}
+.chipsform input.cbp-mc-submit:hover {
+	background: #1478b1;
+}
+
+
+
+
+
+.rotate {
+  animation: rotation 4s infinite linear;
+	float: left;
+	margin 10px 0;
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
+}
+

@@ -76,7 +76,75 @@ class Lunchtime { //describes a lunchtime
     }
 }
 
+//HTTP Server
+//var http = require('http');
+var qs = require('querystring');
 
+//EXPURESS
+
+
+const express = require('express')
+const app = express()
+const port = 3000
+
+
+app.listen(port, () => console.log(""))
+
+app.use(express.static('form'))
+
+app.post('/', function (request, res) {
+        var body = '';
+
+        request.on('data', function (data) {
+            body += data;
+
+        });
+
+
+        request.on('end', function () {
+            var post = qs.parse(body);
+            // use post['blah'], etc.
+            ParsePOSTMenu(post);
+            res.redirect('done.html');
+        });
+
+
+})
+
+function ParsePOSTMenu(PostMenu){
+    newMenu = {
+        Soup:[],
+        Main:[],
+        Theatre:[],
+        Light:[],
+        Side:[]
+    }
+
+    ArrV = []
+    for (key in PostMenu) {
+        ArrV.push(PostMenu[key]);
+    }
+
+    for (var j=0;j<25;j+=5){
+        newMenu.Soup.push(ArrV[j]);
+        newMenu.Main.push(ArrV[j+1]);
+        newMenu.Theatre.push(ArrV[j+2]);
+        newMenu.Light.push(ArrV[j+3]);
+        newMenu.Side.push(ArrV[j+4]);
+    }
+    TheMenu = newMenu;
+    theNow = new Date();
+
+    //get date at end of week
+
+    Sunday = new Date(theNow - (theNow.getDay()*86400000) + (7*86400000));
+
+    MenuValidUntil = Sunday;
+    SaveMenuToFile();
+    WriteValidityToFile();
+    MenuIsValid = true;
+
+}
 
 //Global variables
 var lunchtimes = [];
@@ -157,6 +225,15 @@ function SetMenuValidity(ValDay, ValM){
     var ValidUntilStr = ValidYear.toString().concat("-",ValMS,"-",ValDayS,"T22:59:59Z"); //construct ISO date
     MenuValidUntil = new Date(ValidUntilStr);
     WriteValidityToFile();
+}
+
+function SaveMenuToFile(){
+   fileWrite = JSON.stringify(TheMenu);
+    fs.writeFile("menu.json",fileWrite, (err) => {
+                            if (err) console.log(err);
+
+
+    });
 }
 
 //Betting functions
@@ -495,7 +572,7 @@ function menuHandler(MsgArgs, event, offset){
         }
         else if(DayMap.indexOf(MsgArgs[3+offset]) != -1){
             rtm.sendMessage("MENU FOR ".concat(MsgArgs[3+offset].toUpperCase(),":\n"),event.channel)
-            ArrtoSend = []
+            ArrtoSend = [];
             for(var key in TheMenu){
                 ArrtoSend.push(key.concat(": ",TheMenu[key][DayMap.indexOf(MsgArgs[3+offset])]));
             }
