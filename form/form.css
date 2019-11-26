@@ -25,7 +25,6 @@ body{
 	background-color: lightblue;
 	font-family: "Arial"
 }
-/* Clearfix hack by Nicolas Gallagher: http://nicolasgallagher.com/micro-clearfix-hack/ */
 .chipsform:before, 
 .chipsform:after { 
 	content: " "; display: table; 
@@ -120,7 +119,7 @@ body{
 
 
 .rotate {
-  animation: rotation 4s infinite linear;
+  animation: rotation 20s infinite ease-in-out;
 	float: left;
 	margin 10px 0;
 }
@@ -130,7 +129,7 @@ body{
     transform: rotate(0deg);
   }
   to {
-    transform: rotate(359deg);
+    transform: rotate(35999deg);
   }
 }
 
