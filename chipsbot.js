@@ -269,6 +269,10 @@ function setLunchtime(MsgArgs, event, msgString,wantsToOverwrite){
     if(timeHasBeenFound){
         var lth = parseInt(timeToSet.slice(0,2));
         var ltm = parseInt(timeToSet.slice(3)); //grab the time in xx:yy and convert to integers
+        if(isNaN(lth) || isNaN(ltm)){
+            rtm.sendMessage("Couldn't find a valid time.", event.channel);
+            return;
+        }
         if(lth > 23 || ltm > 59){
             rtm.sendMessage("Please enter a valid time.",event.channel);
             return;
@@ -288,7 +292,7 @@ function setLunchtime(MsgArgs, event, msgString,wantsToOverwrite){
                 lunchtimes[ln].hh = lth;
                 lunchtimes[ln].mm = ltm;
                 lunchtimes[ln].mininDay = ltm + (lth*60);
-                rtm.sendMessage("Lunchtime updated to " + lth + ":" + ltm + "." , event.channel);
+                rtm.sendMessage("Lunchtime updated to " + lth + ":" + (ltm < 10 ? "0" + ltm : ltm) + "." , event.channel);
 
             } else
             {
