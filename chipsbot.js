@@ -449,7 +449,7 @@ function lunchtimeIntentHandler(event){
         } else {
             attemptSubscribe(event, true);
         }
-    } else if(stringtoParse.contains("check","when")){
+    } else if(stringtoParse.contains("check","when", "what time")){
         if(lc != -1){
             lunchtimes[lc].check(new Date(), event);
         } else {
