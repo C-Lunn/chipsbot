@@ -23,9 +23,16 @@ Object.assign(String.prototype, { //adds functionality to search for multiple wo
 const { RTMClient, CLIENT_EVENTS, RTM_EVENTS } = require('@slack/rtm-api');
 const token = process.env.CHIPSTOKEN; //CHIPSTOKEN is an environment variable set with the token in (so it's not published to github)
 const HttpsProxyAgent = require('https-proxy-agent');
+
+
+const got = require('got');
+
 const proxyUrl = process.env.http_proxy //likewise for the proxy
 var fs = require("fs");
-const rtm = new RTMClient(token, { agent: new HttpsProxyAgent(proxyUrl)  }); //creates a new RTM bot
+proxyAgent = new HttpsProxyAgent(proxyUrl);
+const rtm = new RTMClient(token, { agent: proxyAgent  }); //creates a new RTM bot
+const { WebClient } = require('@slack/web-api');
+const web = new WebClient(token, { agent: proxyAgent  });
 //const rtm = new RTMClient(token); //creates a new RTM bot
 const Daymap = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 const daymap = ["sunday","monday","tuesday","wednesday","thursday","friday","saturday"];
@@ -63,7 +70,7 @@ class Lunchtime { //describes a lunchtime
 
         } else {
             this.subscribers.splice(this.subscribers.indexOf(event.user),1);
-            rtm.sendMessage("Thanks, <@".concat(username, ">. You are now unsubscribed from lunch warnings."),event.channel);
+            rtm.sendMessage("Thanks, <@".concat(event.user, ">. You are now unsubscribed from lunch warnings."),event.channel);
 
         }
     }
@@ -170,12 +177,12 @@ var TheMenu;
 var MenuIsValid = false;
 var AlertSent = false;
 var MenuValidUntil = -1;
-var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuff
+var TimeChecker = setInterval(CheckTime,10000); //check time every 10 seconds for time based stuffbu
 betp = new Array();
 bets = new Array();
 
 //RegExp Defs
-const TimeRegExp = /\d\d:\d\d/; //format for time
+const TimeRegExp = /\d?\d:\d\d/; //format for time
 
 
 //Setup functions to run
@@ -262,13 +269,16 @@ function setLunchtime(MsgArgs, event, msgString,wantsToOverwrite){
 
     timeHasBeenFound = false;
     for(i = 0; i < MsgArgs.length; i++){
-        if(TimeRegExp.test(MsgArgs[i])) timeHasBeenFound = true;
-        timeToSet = MsgArgs[i];
+        if(TimeRegExp.test(MsgArgs[i])) {
+            timeHasBeenFound = true;
+            timeToSet = MsgArgs[i];
+        }
     }
 
     if(timeHasBeenFound){
-        var lth = parseInt(timeToSet.slice(0,2));
-        var ltm = parseInt(timeToSet.slice(3)); //grab the time in xx:yy and convert to integers
+	var poscolon = timeToSet.indexOf(":");
+        var lth = parseInt(timeToSet.slice(0,poscolon));
+        var ltm = parseInt(timeToSet.slice(poscolon+1)); //grab the time in xx:yy and convert to integers
         if(isNaN(lth) || isNaN(ltm)){
             rtm.sendMessage("Couldn't find a valid time.", event.channel);
             return;
@@ -374,10 +384,29 @@ rtm.on('message', (event) => { //this is a callback that occurs on every message
 	}
 });
 
+async function chipsHandler(msgArgs,event){
+    urls = ["https://ak9.picdn.net/shutterstock/videos/1035720059/thumb/1.jpg?ip=x480",
+            "https://img.taste.com.au/2EgFmtOd/taste/2016/11/best-ever-deep-fried-chips-13995-1.jpeg",
+            "https://www.thespruceeats.com/thmb/1EWSoUbekhvuF9o9jZW4JwXUcSs=/1500x1000/filters:no_upscale():max_bytes(150000):strip_icc()/best-twice-cooked-chip-recipe-434891-Final-5b9ec40ac9e77c00509fb736.jpg",
+            "https://www.potato.ie/media/1179/chips-2-retouched_72dpi.jpg?anchor=center&mode=crop&width=650&height=345&rnd=131091750530000000&Format=Jpeg",
+            "https://timewellness.files.wordpress.com/2011/06/307_healthland_fries_0623.jpg"]
+    theUrl = Math.round(Math.random() * (urls.length - 1));
+    await web.chat.postMessage({
+        "attachments": [
+            { 
+                "fallback": "Plain-text summary of the attachment.",
+                "image_url": urls[theUrl],
+            }
+        ],
+        "channel" : event.channel,
+        "as_user": true,
+    });
+}
+
 function getUserIntention(event){
     msgString = event.text.toLowerCase();
     if(msgString.includes("help")){
-        helpIntentHandler(event);
+        helpIntentHandler(parseMessage(event.text), event);
     } else if(msgString.contains("lunchtime", "subscribe", "lunch")){
         lunchtimeIntentHandler(event);
     } else if (msgString.includes("menu")) {
